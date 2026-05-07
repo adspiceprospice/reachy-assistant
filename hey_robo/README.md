@@ -38,6 +38,9 @@ For local development without wake gating:
 HEY_ROBO_WAKE_ENABLED=false
 ```
 
+During a live conversation, say something like "go to sleep" or "standby" to
+close the active Realtime session and return to local wake-phrase listening.
+
 ## Codex Relay
 
 The voice agent can call `dispatch_codex_task`, which sends tasks to the local

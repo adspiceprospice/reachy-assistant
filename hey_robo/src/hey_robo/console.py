@@ -90,6 +90,8 @@ class LocalStream:
         self._handler_task: asyncio.Task[None] | None = None
         self._pending_audio_frames: deque[tuple[int, NDArray[np.int16]]] = deque(maxlen=120)
         self._session_timeout_seconds = max(5.0, float(getattr(config, "WAKE_SESSION_TIMEOUT_SECONDS", 45.0)))
+        if hasattr(self.handler, "deps"):
+            self.handler.deps.standby_callback = self.request_standby
 
     # ---- Settings UI (only when API key is missing) ----
     def _read_env_lines(self, env_path: Path) -> list[str]:
@@ -333,6 +335,18 @@ class LocalStream:
         if task in self._tasks:
             self._tasks.remove(task)
         self._handler_task = None
+
+    def request_standby(self, reason: str = "standby requested") -> None:
+        """Request a Realtime shutdown from a tool callback."""
+        loop = self._asyncio_loop
+        if loop is None or not loop.is_running():
+            logger.warning("Standby requested before the stream loop was ready: %s", reason)
+            return
+
+        def _schedule() -> None:
+            asyncio.create_task(self._deactivate_realtime(reason), name="enter-standby")
+
+        loop.call_soon_threadsafe(_schedule)
 
     async def _send_or_buffer_active_frame(self, frame: tuple[int, NDArray[np.int16]]) -> None:
         """Send active-session audio, buffering briefly while Realtime connects."""

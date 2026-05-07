@@ -11,7 +11,8 @@ import hey_robo.openai_realtime as rt_mod
 import hey_robo.tools.background_tool_manager as btm_mod
 from hey_robo.openai_realtime import OpenaiRealtimeHandler, _compute_response_cost
 from hey_robo.tools.core_tools import ToolDependencies
-from hey_robo.tools.background_tool_manager import ToolCallRoutine
+from hey_robo.tools.tool_constants import ToolState
+from hey_robo.tools.background_tool_manager import ToolCallRoutine, ToolNotification
 
 
 def _build_handler(loop: asyncio.AbstractEventLoop) -> OpenaiRealtimeHandler:
@@ -35,6 +36,47 @@ def test_format_timestamp_uses_wall_clock() -> None:
     # Extract year from "[YYYY-MM-DD ...]"
     year = int(formatted[1:5])
     assert year == datetime.now(timezone.utc).year
+
+@pytest.mark.asyncio
+async def test_standby_tool_result_requests_standby_without_followup_response() -> None:
+    """Standby should close the session path instead of asking Realtime to speak again."""
+    called: list[str] = []
+
+    class FakeItem:
+        async def create(self, **_kw: Any) -> None:
+            return None
+
+    class FakeConversation:
+        item = FakeItem()
+
+    class FakeConnection:
+        conversation = FakeConversation()
+
+    deps = ToolDependencies(
+        reachy_mini=MagicMock(),
+        movement_manager=MagicMock(),
+        standby_callback=lambda reason: called.append(reason),
+    )
+    handler = OpenaiRealtimeHandler(deps)
+    handler.connection = FakeConnection()
+
+    await handler._handle_tool_result(
+        ToolNotification(
+            id="call_1",
+            tool_name="enter_standby",
+            is_idle_tool_call=False,
+            status=ToolState.COMPLETED,
+            result={
+                "status": "standby_requested",
+                "standby_requested": True,
+                "reason": "user asked to sleep",
+            },
+        )
+    )
+
+    assert called == ["user asked to sleep"]
+    assert handler._pending_responses.qsize() == 0
+
 
 @pytest.mark.asyncio
 async def test_start_up_retries_on_abrupt_close(monkeypatch: Any, caplog: Any) -> None:

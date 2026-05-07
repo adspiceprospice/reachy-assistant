@@ -427,6 +427,11 @@ class OpenaiRealtimeHandler(AsyncStreamHandler):
             # If this tool call was triggered by an idle signal, don't make the robot speak.
             # For other tool calls, let the robot reply out loud.
             if not bg_tool.is_idle_tool_call:
+                if bg_tool.tool_name == "enter_standby" and tool_result.get("standby_requested") is True:
+                    standby_callback = getattr(self.deps, "standby_callback", None)
+                    if callable(standby_callback):
+                        standby_callback(str(tool_result.get("reason") or "User requested standby."))
+                    return
                 await self._safe_response_create(
                     response={
                         "instructions": "Use the tool result just returned and answer concisely in speech.",

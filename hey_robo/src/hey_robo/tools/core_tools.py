@@ -8,7 +8,7 @@ import inspect
 import logging
 import importlib
 import importlib.util
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Callable
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -65,6 +65,7 @@ class ToolDependencies:
     camera_worker: Any | None = None  # CameraWorker for frame buffering
     vision_manager: Any | None = None
     head_wobbler: Any | None = None  # HeadWobbler for audio-reactive motion
+    standby_callback: Callable[[str], None] | None = None
     motion_duration_s: float = 1.0
 
 

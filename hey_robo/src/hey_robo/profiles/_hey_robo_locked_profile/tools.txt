@@ -6,6 +6,7 @@ stop_dance
 play_emotion
 stop_emotion
 codex_task
+standby
 #camera
 #do_nothing
 #head_tracking
