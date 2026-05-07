@@ -1,9 +1,62 @@
 import os
 import sys
 import logging
+import unicodedata
 from pathlib import Path
 
 from dotenv import find_dotenv, load_dotenv
+
+
+DEFAULT_REALTIME_LANGUAGES = ("English",)
+
+_LANGUAGE_CODE_ALIASES = {
+    "afrikaans": "af",
+    "arabic": "ar",
+    "ar": "ar",
+    "basque": "eu",
+    "catalan": "ca",
+    "chinese": "zh",
+    "zh": "zh",
+    "czech": "cs",
+    "danish": "da",
+    "dutch": "nl",
+    "nederlands": "nl",
+    "nl": "nl",
+    "english": "en",
+    "en": "en",
+    "finnish": "fi",
+    "french": "fr",
+    "francais": "fr",
+    "fr": "fr",
+    "german": "de",
+    "deutsch": "de",
+    "de": "de",
+    "greek": "el",
+    "hebrew": "he",
+    "hindi": "hi",
+    "hungarian": "hu",
+    "indonesian": "id",
+    "italian": "it",
+    "italiano": "it",
+    "it": "it",
+    "japanese": "ja",
+    "korean": "ko",
+    "norwegian": "no",
+    "polish": "pl",
+    "portuguese": "pt",
+    "portugues": "pt",
+    "pt": "pt",
+    "romanian": "ro",
+    "russian": "ru",
+    "spanish": "es",
+    "espanol": "es",
+    "es": "es",
+    "swedish": "sv",
+    "thai": "th",
+    "turkish": "tr",
+    "ukrainian": "uk",
+    "vietnamese": "vi",
+}
 
 
 # Locked profile: set to a profile name (e.g., "astronomer") to lock the app
@@ -12,6 +65,16 @@ LOCKED_PROFILE: str | None = "_hey_robo_locked_profile"
 DEFAULT_PROFILES_DIRECTORY = Path(__file__).parent / "profiles"
 
 logger = logging.getLogger(__name__)
+
+
+def _fold_language_label(value: str) -> str:
+    """Normalize a language label for comparison without changing display text."""
+    return (
+        unicodedata.normalize("NFKD", value.strip().strip('"').strip("'"))
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .casefold()
+    )
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -56,6 +119,70 @@ def _env_int(name: str, default: int) -> int:
     except ValueError:
         logger.warning("Invalid integer value for %s=%r, using default=%s", name, raw, default)
         return default
+
+
+def parse_realtime_languages(value: object | None) -> list[str]:
+    """Parse the ordered list of languages expected during Realtime sessions."""
+    if value is None:
+        return list(DEFAULT_REALTIME_LANGUAGES)
+
+    if isinstance(value, (list, tuple)):
+        parts = [str(item).strip() for item in value]
+    else:
+        raw = str(value).replace("\n", ",").replace(";", ",")
+        parts = [part.strip() for part in raw.split(",")]
+
+    languages: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        cleaned = part.strip().strip('"').strip("'")
+        if not cleaned:
+            continue
+        folded = _fold_language_label(cleaned).replace("_", "-")
+        base, _, _region = folded.partition("-")
+        key = _LANGUAGE_CODE_ALIASES.get(folded) or _LANGUAGE_CODE_ALIASES.get(base) or folded
+        if key in seen:
+            continue
+        seen.add(key)
+        languages.append(cleaned)
+        if len(languages) >= 8:
+            break
+
+    return languages or list(DEFAULT_REALTIME_LANGUAGES)
+
+
+def realtime_languages_to_env(value: object | None) -> str:
+    """Return a stable comma-separated display/storage value for languages."""
+    return ", ".join(parse_realtime_languages(value))
+
+
+def language_code_for_realtime_transcription(language: str | None) -> str | None:
+    """Map a user-facing language label/code to an ISO-style transcription hint."""
+    if not language:
+        return None
+    normalized = _fold_language_label(language).replace("_", "-")
+    if not normalized:
+        return None
+    if normalized in _LANGUAGE_CODE_ALIASES:
+        return _LANGUAGE_CODE_ALIASES[normalized]
+
+    # Accept already-code-like values such as en-US by using the base language.
+    base, _, _region = normalized.partition("-")
+    if base in _LANGUAGE_CODE_ALIASES:
+        return _LANGUAGE_CODE_ALIASES[base]
+    if 2 <= len(base) <= 3 and base.isalpha():
+        return base
+    return None
+
+
+def get_realtime_languages() -> list[str]:
+    """Return the runtime language preference list from config."""
+    return parse_realtime_languages(getattr(config, "REALTIME_LANGUAGES", DEFAULT_REALTIME_LANGUAGES))
+
+
+def get_primary_realtime_language_code() -> str | None:
+    """Return the transcription hint code for the first configured language."""
+    return language_code_for_realtime_transcription(get_realtime_languages()[0])
 
 
 def _collect_profile_names(profiles_root: Path) -> set[str]:
@@ -141,6 +268,7 @@ class Config:
     WAKE_ACTIVATION_MIN_INTERVAL_SECONDS = _env_float("HEY_ROBO_WAKE_ACTIVATION_MIN_INTERVAL_SECONDS", 2.0)
     WAKE_SESSION_TIMEOUT_SECONDS = _env_float("HEY_ROBO_WAKE_SESSION_TIMEOUT_SECONDS", 45.0)
     REALTIME_VOICE = os.getenv("HEY_ROBO_REALTIME_VOICE", os.getenv("OPENAI_REALTIME_VOICE", "cedar"))
+    REALTIME_LANGUAGES = parse_realtime_languages(os.getenv("HEY_ROBO_REALTIME_LANGUAGES"))
     CODEX_RELAY_URL = os.getenv("HEY_ROBO_CODEX_RELAY_URL", "http://127.0.0.1:8766")
     CODEX_RELAY_TOKEN = os.getenv("HEY_ROBO_CODEX_RELAY_TOKEN", "")
     CODEX_DEFAULT_WORKSPACE = os.getenv("HEY_ROBO_CODEX_DEFAULT_WORKSPACE", "current")

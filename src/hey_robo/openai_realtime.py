@@ -1,3 +1,4 @@
+import re
 import json
 import uuid
 import base64
@@ -17,7 +18,7 @@ from numpy.typing import NDArray
 from scipy.signal import resample
 from websockets.exceptions import ConnectionClosedError
 
-from hey_robo.config import config
+from hey_robo.config import config, get_primary_realtime_language_code
 from hey_robo.prompts import get_session_voice, get_session_instructions
 from hey_robo.tools.core_tools import (
     ToolDependencies,
@@ -43,6 +44,44 @@ TEXT_OUTPUT_COST_PER_1M = 16.0
 IMAGE_INPUT_COST_PER_1M = 5.0
 
 _RESPONSE_DONE_TIMEOUT: Final[float] = 30.0
+_STANDBY_REQUEST_PHRASES: Final[tuple[str, ...]] = (
+    "go to sleep",
+    "go sleep",
+    "sleep now",
+    "please sleep",
+    "standby",
+    "stand by",
+    "go to standby",
+    "back to standby",
+    "return to standby",
+    "go quiet",
+    "be quiet",
+    "stop listening",
+    "stop the conversation",
+    "end the conversation",
+    "wait for the wake phrase",
+    "listen for hey robo",
+    "ga slapen",
+    "ga naar standby",
+    "terug naar standby",
+    "stop met luisteren",
+    "wacht op hey robo",
+)
+_STANDBY_NEGATION_PHRASES: Final[tuple[str, ...]] = (
+    "do not sleep",
+    "don't sleep",
+    "dont sleep",
+    "not sleep",
+    "do not go to sleep",
+    "don't go to sleep",
+    "dont go to sleep",
+    "do not standby",
+    "don't standby",
+    "dont standby",
+    "niet slapen",
+    "ga niet slapen",
+    "stop niet met luisteren",
+)
 
 
 def _usage_token_count(container: Any, field_name: str) -> int:
@@ -81,6 +120,33 @@ def _response_usage_tokens(usage: Any) -> dict[str, int]:
         "output_audio": _usage_token_count(out, "audio_tokens"),
         "output_text": _usage_token_count(out, "text_tokens"),
     }
+
+
+def _build_transcription_config() -> dict[str, str]:
+    """Build Realtime transcription settings from the ordered language preference."""
+    transcription = {"model": "gpt-4o-transcribe"}
+    primary_language = get_primary_realtime_language_code()
+    if primary_language:
+        transcription["language"] = primary_language
+    return transcription
+
+
+def _normalize_control_text(text: str) -> str:
+    """Normalize transcript text for simple local control-command matching."""
+    lowered = text.casefold().replace("’", "'")
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9']+", " ", lowered)).strip()
+
+
+def _looks_like_standby_request(transcript: str | None) -> bool:
+    """Return whether a transcript should immediately return HeyRobo to standby."""
+    if not transcript:
+        return False
+    normalized = _normalize_control_text(transcript)
+    if not normalized:
+        return False
+    if any(phrase in normalized for phrase in _STANDBY_NEGATION_PHRASES):
+        return False
+    return any(phrase in normalized for phrase in _STANDBY_REQUEST_PHRASES)
 
 
 class OpenaiRealtimeHandler(AsyncStreamHandler):
@@ -484,7 +550,7 @@ class OpenaiRealtimeHandler(AsyncStreamHandler):
                                     "type": "audio/pcm",
                                     "rate": self.input_sample_rate,
                                 },
-                                "transcription": {"model": "gpt-4o-transcribe", "language": "en"},
+                                "transcription": _build_transcription_config(),
                                 "turn_detection": {
                                     "type": "server_vad",
                                     "interrupt_response": True,
@@ -503,9 +569,10 @@ class OpenaiRealtimeHandler(AsyncStreamHandler):
                     },
                 )
                 logger.info(
-                    "Realtime session initialized with profile=%r voice=%r",
+                    "Realtime session initialized with profile=%r voice=%r transcription=%s",
                     getattr(config, "REACHY_MINI_CUSTOM_PROFILE", None),
                     get_session_voice(),
+                    _build_transcription_config(),
                 )
                 # If we reached here, the session update succeeded which implies the API key worked.
                 # Persist the key to a newly created .env (copied from .env.example) if needed.
@@ -615,7 +682,8 @@ class OpenaiRealtimeHandler(AsyncStreamHandler):
                     # Handle completed transcription (user finished speaking)
                     if event.type == "conversation.item.input_audio_transcription.completed":
                         self.last_activity_time = asyncio.get_event_loop().time()
-                        logger.debug(f"User transcript: {event.transcript}")
+                        transcript = str(getattr(event, "transcript", "") or "")
+                        logger.debug("User transcript: %s", transcript)
 
                         # Cancel any pending partial emission
                         if self.partial_transcript_task and not self.partial_transcript_task.done():
@@ -625,7 +693,16 @@ class OpenaiRealtimeHandler(AsyncStreamHandler):
                             except asyncio.CancelledError:
                                 pass
 
-                        await self.output_queue.put(AdditionalOutputs({"role": "user", "content": event.transcript}))
+                        if _looks_like_standby_request(transcript):
+                            logger.info("Local standby command detected from transcript: %r", transcript)
+                            standby_callback = getattr(self.deps, "standby_callback", None)
+                            if callable(standby_callback):
+                                standby_callback("User requested standby by voice command.")
+                            else:
+                                await self.shutdown()
+                            continue
+
+                        await self.output_queue.put(AdditionalOutputs({"role": "user", "content": transcript}))
 
                     # Handle assistant transcription
                     if event.type in ("response.audio_transcript.done", "response.output_audio_transcript.done"):
