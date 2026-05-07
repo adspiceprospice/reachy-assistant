@@ -140,7 +140,7 @@ class LocalStream:
           * If ``.env`` exists, replaces/append OPENAI_API_KEY line.
           * Else, copies template from ``<instance_path>/.env.example`` when present,
             otherwise falls back to the packaged template
-            ``hey_robo/.env.example``.
+            ``src/hey_robo/.env.example``.
           * Ensures the resulting file contains the full template plus the key.
         - Loads the written ``.env`` into the current process environment.
         """
