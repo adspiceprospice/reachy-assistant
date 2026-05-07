@@ -45,19 +45,42 @@ IMAGE_INPUT_COST_PER_1M = 5.0
 _RESPONSE_DONE_TIMEOUT: Final[float] = 30.0
 
 
+def _usage_token_count(container: Any, field_name: str) -> int:
+    """Return a numeric token count from an OpenAI usage detail object."""
+    if container is None:
+        return 0
+    value = getattr(container, field_name, 0) or 0
+    if isinstance(value, (int, float)):
+        return int(value)
+    return 0
+
+
 def _compute_response_cost(usage: Any) -> float:
     """Compute dollar cost from a response usage object."""
     inp = getattr(usage, "input_token_details", None)
     out = getattr(usage, "output_token_details", None)
     cost = 0.0
-    if inp:
-        cost += (getattr(inp, "audio_tokens", 0) or 0) * AUDIO_INPUT_COST_PER_1M / 1e6
-        cost += (getattr(inp, "text_tokens", 0) or 0) * TEXT_INPUT_COST_PER_1M / 1e6
-        cost += (getattr(inp, "image_tokens", 0) or 0) * IMAGE_INPUT_COST_PER_1M / 1e6
-    if out:
-        cost += (getattr(out, "audio_tokens", 0) or 0) * AUDIO_OUTPUT_COST_PER_1M / 1e6
-        cost += (getattr(out, "text_tokens", 0) or 0) * TEXT_OUTPUT_COST_PER_1M / 1e6
+    if inp is not None:
+        cost += _usage_token_count(inp, "audio_tokens") * AUDIO_INPUT_COST_PER_1M / 1e6
+        cost += _usage_token_count(inp, "text_tokens") * TEXT_INPUT_COST_PER_1M / 1e6
+        cost += _usage_token_count(inp, "image_tokens") * IMAGE_INPUT_COST_PER_1M / 1e6
+    if out is not None:
+        cost += _usage_token_count(out, "audio_tokens") * AUDIO_OUTPUT_COST_PER_1M / 1e6
+        cost += _usage_token_count(out, "text_tokens") * TEXT_OUTPUT_COST_PER_1M / 1e6
     return cost
+
+
+def _response_usage_tokens(usage: Any) -> dict[str, int]:
+    """Return token counters from a Realtime response usage object."""
+    inp = getattr(usage, "input_token_details", None)
+    out = getattr(usage, "output_token_details", None)
+    return {
+        "input_audio": _usage_token_count(inp, "audio_tokens"),
+        "input_text": _usage_token_count(inp, "text_tokens"),
+        "input_image": _usage_token_count(inp, "image_tokens"),
+        "output_audio": _usage_token_count(out, "audio_tokens"),
+        "output_text": _usage_token_count(out, "text_tokens"),
+    }
 
 
 class OpenaiRealtimeHandler(AsyncStreamHandler):
@@ -548,8 +571,23 @@ class OpenaiRealtimeHandler(AsyncStreamHandler):
                         usage = getattr(response, "usage", None) if response else None
                         if usage:
                             cost = _compute_response_cost(usage)
-                            self.cumulative_cost += cost
-                            logger.debug("Cost: $%.4f | Cumulative: $%.4f", cost, self.cumulative_cost)
+                            tokens = _response_usage_tokens(usage)
+                            if any(tokens.values()):
+                                self.cumulative_cost += cost
+                                logger.info(
+                                    "Realtime usage: cost=$%.4f cumulative=$%.4f "
+                                    "input_audio_tokens=%d input_text_tokens=%d input_image_tokens=%d "
+                                    "output_audio_tokens=%d output_text_tokens=%d",
+                                    cost,
+                                    self.cumulative_cost,
+                                    tokens["input_audio"],
+                                    tokens["input_text"],
+                                    tokens["input_image"],
+                                    tokens["output_audio"],
+                                    tokens["output_text"],
+                                )
+                            else:
+                                logger.debug("Realtime usage event had no token counts")
                         else:
                             logger.warning("No usage data available for cost tracking")
 

@@ -3,100 +3,163 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hey Robo – Settings</title>
+    <title>HeyRobo Control</title>
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
     <div id="loading" class="loading">
       <div class="spinner"></div>
-      <p>Loading…</p>
+      <p>Loading</p>
     </div>
-    <div class="container">
-      <header class="hero">
-        <div class="pill">Reachy Mini Wireless</div>
-        <h1>Hey Robo</h1>
-        <p class="subtitle">Configure wake, voice, OpenAI, and the local Codex relay.</p>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <p class="eyebrow">Reachy Mini Wireless</p>
+            <h1>HeyRobo Control</h1>
+          </div>
+        </div>
+        <span id="connection-state" class="state-pill pending">Connecting</span>
       </header>
 
-      <div id="configured" class="panel hidden">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Credentials</p>
-            <h2>API key ready</h2>
-          </div>
-          <span class="chip chip-ok">Connected</span>
+      <section class="ops-strip" aria-label="Current app status">
+        <div class="ops-item">
+          <span>Wake</span>
+          <strong id="metric-wake">Checking</strong>
+          <small id="metric-wake-detail">Detector status</small>
         </div>
-        <p class="muted">OpenAI API key is configured. Review the settings below before starting a session.</p>
-        <button id="change-key-btn" class="ghost">Change API key</button>
-      </div>
-
-      <div id="form-panel" class="panel hidden">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Credentials</p>
-            <h2>Assistant Settings</h2>
-          </div>
-          <span class="chip">Required</span>
+        <div class="ops-item">
+          <span>Realtime</span>
+          <strong id="metric-voice">cedar</strong>
+          <small>Selected voice</small>
         </div>
-        <p class="muted">Secrets are stored locally in this app instance and are not committed.</p>
-        <label for="api-key">OpenAI API Key</label>
-        <input id="api-key" type="password" placeholder="sk-..." autocomplete="off" />
-
-        <div class="grid">
-          <div>
-            <label for="wake-phrase">Wake phrase</label>
-            <input id="wake-phrase" type="text" autocomplete="off" />
-          </div>
-          <div>
-            <label for="wake-timeout">Session timeout</label>
-            <input id="wake-timeout" type="text" inputmode="numeric" autocomplete="off" />
-          </div>
+        <div class="ops-item">
+          <span>OpenAI</span>
+          <strong id="metric-key">Checking</strong>
+          <small>Credential state</small>
         </div>
-
-        <label class="check-row" for="wake-enabled">
-          <input id="wake-enabled" type="checkbox" />
-          <span>Require wake phrase before Realtime starts</span>
-        </label>
-
-        <label for="wake-model-path">Wake model path</label>
-        <input id="wake-model-path" type="text" autocomplete="off" placeholder="/path/to/vosk-model-small-en-us-0.15" />
-        <p id="wake-status" class="status"></p>
-
-        <div class="grid">
-          <div>
-            <label for="voice">Voice</label>
-            <select id="voice">
-              <option value="cedar">cedar</option>
-              <option value="alloy">alloy</option>
-              <option value="aria">aria</option>
-              <option value="ballad">ballad</option>
-              <option value="coral">coral</option>
-              <option value="sage">sage</option>
-              <option value="verse">verse</option>
-            </select>
-          </div>
+        <div class="ops-item">
+          <span>Codex</span>
+          <strong id="metric-relay">Local relay</strong>
+          <small id="metric-relay-detail">Workspace</small>
         </div>
+      </section>
 
-        <label for="relay-url">Codex relay URL</label>
-        <input id="relay-url" type="text" autocomplete="off" />
+      <div class="workspace-grid">
+        <section id="form-panel" class="panel settings-panel hidden" aria-labelledby="settings-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Settings</p>
+              <h2 id="settings-title">Assistant Runtime</h2>
+            </div>
+            <span id="settings-chip" class="chip">Required</span>
+          </div>
 
-        <div class="grid">
-          <div>
+          <div id="configured" class="notice hidden">
+            <div>
+              <strong>OpenAI key is saved</strong>
+              <p>Use the field below only when replacing the current key.</p>
+            </div>
+            <button id="change-key-btn" class="secondary" type="button">Change key</button>
+          </div>
+
+          <div class="field-group">
+            <label for="api-key">OpenAI API key</label>
+            <input id="api-key" type="password" placeholder="sk-..." autocomplete="off" />
+          </div>
+
+          <div class="split">
+            <div class="field-group">
+              <label for="wake-phrase">Wake phrase</label>
+              <input id="wake-phrase" type="text" autocomplete="off" />
+            </div>
+            <div class="field-group">
+              <label for="wake-timeout">Session timeout</label>
+              <input id="wake-timeout" type="text" inputmode="numeric" autocomplete="off" />
+            </div>
+          </div>
+
+          <label class="check-row" for="wake-enabled">
+            <input id="wake-enabled" type="checkbox" />
+            <span>Require wake phrase before Realtime starts</span>
+          </label>
+
+          <div class="field-group">
+            <label for="wake-model-path">Vosk wake model path</label>
+            <input
+              id="wake-model-path"
+              type="text"
+              autocomplete="off"
+              placeholder="/home/pollen/wake_models/vosk-model-small-en-us-0.15"
+            />
+            <p id="wake-status" class="status"></p>
+          </div>
+
+          <div class="split">
+            <div class="field-group">
+              <label for="voice">Realtime voice</label>
+              <select id="voice">
+                <option value="cedar">cedar</option>
+                <option value="alloy">alloy</option>
+                <option value="aria">aria</option>
+                <option value="ballad">ballad</option>
+                <option value="coral">coral</option>
+                <option value="sage">sage</option>
+                <option value="verse">verse</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label for="workspace-id">Default workspace ID</label>
+              <input id="workspace-id" type="text" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="relay-url">Codex relay URL</label>
+            <input id="relay-url" type="text" autocomplete="off" />
+          </div>
+
+          <div class="field-group">
             <label for="relay-token">Codex relay token</label>
             <input id="relay-token" type="password" placeholder="Leave blank to keep existing token" autocomplete="off" />
           </div>
-          <div>
-            <label for="workspace-id">Default workspace ID</label>
-            <input id="workspace-id" type="text" autocomplete="off" />
-          </div>
-        </div>
 
-        <div class="actions">
-          <button id="save-btn">Save settings</button>
-          <p id="status" class="status"></p>
-        </div>
+          <div class="actions">
+            <button id="save-btn" type="button">Save settings</button>
+            <p id="status" class="status" aria-live="polite"></p>
+          </div>
+        </section>
+
+        <section class="panel log-panel" aria-labelledby="log-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Live Stream</p>
+              <h2 id="log-title">Calls, Usage, Errors</h2>
+            </div>
+            <span id="log-state" class="chip">Connecting</span>
+          </div>
+
+          <div class="log-toolbar">
+            <label class="sr-only" for="log-filter">Filter logs</label>
+            <input id="log-filter" type="text" placeholder="Filter log text" autocomplete="off" />
+            <label class="sr-only" for="log-level">Minimum log level</label>
+            <select id="log-level">
+              <option value="ALL">All</option>
+              <option value="INFO">Info</option>
+              <option value="WARNING">Warning</option>
+              <option value="ERROR">Error</option>
+            </select>
+            <button id="clear-log-btn" class="secondary" type="button">Clear</button>
+          </div>
+
+          <div id="log-window" class="log-window" role="log" aria-live="polite" aria-label="Live app log">
+            <p class="empty-log">Waiting for app events</p>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
 
     <script src="/static/main.js"></script>
   </body>

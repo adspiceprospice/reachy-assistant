@@ -11,6 +11,7 @@ app instance's ``.env`` file (if available) and proceed to start streaming.
 
 import os
 import sys
+import json
 import time
 import asyncio
 import logging
@@ -32,6 +33,7 @@ from hey_robo.wake_word import (
     WakeDetectorStatus,
     build_wake_word_detector,
 )
+from hey_robo.log_stream import get_live_log_hub
 from hey_robo.openai_realtime import OpenaiRealtimeHandler
 from hey_robo.headless_personality_ui import mount_personality_routes
 
@@ -40,12 +42,13 @@ try:
     # FastAPI is provided by the Reachy Mini Apps runtime
     from fastapi import FastAPI, Response
     from pydantic import BaseModel
-    from fastapi.responses import FileResponse, JSONResponse
+    from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
     from starlette.staticfiles import StaticFiles
 except Exception:  # pragma: no cover - only loaded when settings_app is used
     FastAPI = object  # type: ignore
     FileResponse = object  # type: ignore
     JSONResponse = object  # type: ignore
+    StreamingResponse = object  # type: ignore
     StaticFiles = object  # type: ignore
     BaseModel = object  # type: ignore
 
@@ -490,6 +493,19 @@ class LocalStream:
                 }
             )
 
+        async def _log_event_stream():
+            hub = get_live_log_hub()
+            subscriber = hub.subscribe(asyncio.get_running_loop())
+            try:
+                yield "event: ready\ndata: {}\n\n"
+                while True:
+                    event = await subscriber.queue.get()
+                    yield f"data: {json.dumps(event, separators=(',', ':'))}\n\n"
+            except asyncio.CancelledError:
+                raise
+            finally:
+                hub.unsubscribe(subscriber)
+
         # GET / -> index.html
         @self._settings_app.get("/")
         def _root() -> FileResponse:
@@ -508,6 +524,22 @@ class LocalStream:
         @self._settings_app.get("/settings")
         def _settings() -> JSONResponse:
             return _settings_response()
+
+        @self._settings_app.get("/logs/recent")
+        def _recent_logs(limit: int = 200) -> JSONResponse:
+            return JSONResponse({"events": get_live_log_hub().recent(limit=limit)})
+
+        @self._settings_app.get("/logs/events")
+        def _live_logs() -> StreamingResponse:
+            return StreamingResponse(
+                _log_event_stream(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
 
         # GET /ready -> whether backend finished loading tools
         @self._settings_app.get("/ready")
@@ -553,6 +585,11 @@ class LocalStream:
             if not values:
                 return JSONResponse({"ok": False, "error": "empty_settings"}, status_code=400)
             _persist_env_values(values)
+            if any(key.startswith("HEY_ROBO_WAKE_") for key in values):
+                try:
+                    self._build_wake_detector()
+                except Exception as exc:
+                    logger.warning("Saved settings, but wake detector rebuild failed: %s", exc)
             return JSONResponse({"ok": True})
 
         # POST /validate_api_key -> validate key without persisting it

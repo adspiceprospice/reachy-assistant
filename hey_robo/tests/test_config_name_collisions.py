@@ -11,8 +11,9 @@ def test_config_raises_on_external_profile_name_collision(
     """Config should fail fast when external/built-in profile names collide."""
     external_profiles = tmp_path / "external_profiles"
     external_profiles.mkdir(parents=True)
-    (external_profiles / "default").mkdir()
+    (external_profiles / "_hey_robo_locked_profile").mkdir()
 
+    monkeypatch.setattr(config_mod.Config, "REACHY_MINI_CUSTOM_PROFILE", None)
     monkeypatch.setattr(config_mod.Config, "PROFILES_DIRECTORY", external_profiles)
     monkeypatch.setattr(config_mod.Config, "TOOLS_DIRECTORY", None)
 

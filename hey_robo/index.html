@@ -3,41 +3,65 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hey Robo</title>
+    <title>HeyRobo</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="ambient"></div>
-    <div class="container">
-      <header class="hero">
-        <div class="pill">Reachy Mini App</div>
-        <h1>Hey Robo</h1>
-        <p class="subtitle">A conversation app for Reachy Mini robot.</p>
-        <p class="subtitle credit">Made by Adrian with Codex - <a href="https://curiosityai.nl">curiosityai.nl</a></p>
-      </header>
-
-      <div class="panel">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Getting Started</p>
-            <h2>Installation</h2>
-          </div>
+    <main>
+      <section class="hero" aria-label="HeyRobo Reachy Mini assistant">
+        <div class="hero-content">
+          <p class="pill">Reachy Mini Wireless App</p>
+          <h1>HeyRobo</h1>
+          <p class="subtitle">
+            Wake-word gated OpenAI Realtime conversations for Reachy Mini, with a local Codex relay for hands-free
+            development tasks on your WiFi network.
+          </p>
+          <p class="credit">Made by Adrian with Codex - <a href="https://curiosityai.nl">curiosityai.nl</a></p>
         </div>
-        <p class="muted">Install this app on your Reachy Mini using the app store, or run it locally:</p>
-        <pre><code>uv sync
-reachy-mini-daemon --sim  # in another terminal
+      </section>
+
+      <section class="band">
+        <div class="section-heading">
+          <p class="eyebrow">Runtime</p>
+          <h2>Always Local Until "Hey Robo"</h2>
+        </div>
+        <div class="feature-grid">
+          <article>
+            <span>01</span>
+            <h3>Wake Gate</h3>
+            <p>Vosk listens locally for a configurable phrase before any Realtime session starts.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Realtime Voice</h3>
+            <p>OpenAI Realtime runs only during the active conversation and can return to standby on command.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Codex Relay</h3>
+            <p>The assistant can dispatch authenticated tasks to a local Codex relay and branch automatically.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="band muted-band">
+        <div class="section-heading">
+          <p class="eyebrow">Install</p>
+          <h2>Reachy Mini App Store Ready</h2>
+        </div>
+        <div class="setup-grid">
+          <pre><code>uv sync
+reachy-mini-daemon --sim
 python -m hey_robo</code></pre>
-      </div>
-
-      <div class="panel">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Configuration</p>
-            <h2>OpenAI API Key</h2>
+          <div class="copy">
+            <p>
+              Configure the OpenAI API key, wake phrase, voice, Vosk model path, and Codex relay from the installed app
+              settings page.
+            </p>
+            <p>The dashboard includes a live log window for calls, usage, wake events, relay activity, and errors.</p>
           </div>
         </div>
-        <p class="muted">This app requires an OpenAI API key for voice conversations. Set it via the web interface or environment variable.</p>
-      </div>
-    </div>
+      </section>
+    </main>
   </body>
 </html>
