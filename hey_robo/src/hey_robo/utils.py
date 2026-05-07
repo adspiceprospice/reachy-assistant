@@ -4,6 +4,7 @@ import warnings
 from typing import Any, Tuple, Optional
 
 from reachy_mini import ReachyMini
+from hey_robo.log_stream import install_live_log_handler
 from hey_robo.camera_worker import CameraWorker
 
 
@@ -84,6 +85,7 @@ def setup_logger(debug: bool) -> logging.Logger:
         level=getattr(logging, log_level, logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s:%(lineno)d | %(message)s",
     )
+    install_live_log_handler()
     logger = logging.getLogger(__name__)
 
     # Suppress WebRTC warnings

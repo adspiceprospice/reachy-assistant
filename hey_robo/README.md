@@ -1,7 +1,7 @@
 ---
 title: Hey Robo
 emoji: 🤖
-colorFrom: purple
+colorFrom: green
 colorTo: gray
 sdk: static
 pinned: false
@@ -11,6 +11,8 @@ tags:
 ---
 
 # Hey Robo
+
+Made by Adrian with Codex - [curiosityai.nl](https://curiosityai.nl)
 
 Hey Robo is a Reachy Mini Wireless assistant app forked from the official
 conversation template. It listens locally for a configurable wake phrase,
@@ -46,6 +48,14 @@ close the active Realtime session and return to local wake-phrase listening.
 The voice agent can call `dispatch_codex_task`, which sends tasks to the local
 relay configured in settings. The relay requires a bearer token, allowlisted
 workspaces, and creates a `codex/hey-robo-*` branch before running Codex.
+
+## Settings Dashboard
+
+The installed app page lets you manage the OpenAI API key, wake phrase, Vosk
+model path, Realtime voice, Codex relay URL, relay token, and default workspace.
+It also includes a live log window for wake events, Realtime usage, tool calls,
+Codex relay activity, and errors. API keys and bearer tokens are redacted before
+logs are streamed to the browser.
 
 Use the `src/hey_robo/profiles/_hey_robo_locked_profile` folder to customize your own app from this template:
 - Edit instructions `_hey_robo_locked_profile/instructions.txt`

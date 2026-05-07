@@ -1,113 +1,226 @@
 :root {
-  --bg: #060b1a;
-  --bg-2: #071023;
-  --panel: rgba(11, 18, 36, 0.8);
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #eaf2ff;
-  --muted: #9fb6d7;
-  --accent: #45c4ff;
-  --accent-2: #5ef0c1;
-  --shadow: 0 20px 70px rgba(0, 0, 0, 0.45);
+  --bg: #020617;
+  --surface: #08111f;
+  --surface-2: #0d1827;
+  --border: #223044;
+  --text: #f1f7ff;
+  --muted: #a8b7c9;
+  --ok: #22c55e;
+  --accent: #38bdf8;
+  --warn: #f59e0b;
+  --shadow: 0 20px 70px rgba(0, 0, 0, 0.36);
+  --radius: 8px;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: "Space Grotesk", "Inter", "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 20% 20%, rgba(69, 196, 255, 0.16), transparent 35%),
-              radial-gradient(circle at 80% 0%, rgba(94, 240, 193, 0.16), transparent 32%),
-              linear-gradient(135deg, var(--bg), var(--bg-2));
+  font-family:
+    "Inter",
+    "Fira Sans",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  background: var(--bg);
   color: var(--text);
 }
 
-.ambient {
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(circle at 30% 60%, rgba(255, 255, 255, 0.05), transparent 35%),
-              radial-gradient(circle at 75% 30%, rgba(69, 196, 255, 0.08), transparent 32%);
-  filter: blur(60px);
-  z-index: 0;
-  pointer-events: none;
-}
-
-.container {
-  position: relative;
-  max-width: 600px;
-  margin: 10vh auto;
-  padding: 0 24px 40px;
-  z-index: 1;
+a {
+  color: #9cf4ba;
 }
 
 .hero {
-  margin-bottom: 24px;
+  min-height: 74dvh;
+  display: flex;
+  align-items: end;
+  padding: clamp(28px, 6vw, 80px);
+  background:
+    linear-gradient(90deg, rgba(2, 6, 23, 0.96) 0%, rgba(2, 6, 23, 0.72) 46%, rgba(2, 6, 23, 0.2) 100%),
+    linear-gradient(0deg, rgba(2, 6, 23, 0.82) 0%, rgba(2, 6, 23, 0.08) 48%),
+    url("https://cdn-uploads.huggingface.co/production/uploads/671faa3a541a76b548647676/uEa13KsL5wtQREVZ1ixwc.png")
+      center right / cover no-repeat;
 }
-.hero h1 {
-  margin: 6px 0 6px;
-  font-size: 32px;
-  letter-spacing: -0.4px;
+
+.hero-content {
+  width: min(700px, 100%);
+  padding-bottom: 18px;
 }
-.subtitle {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.5;
-}
+
 .pill {
   display: inline-flex;
+  min-height: 34px;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  margin: 0 0 14px;
+  border: 1px solid rgba(34, 197, 94, 0.42);
   border-radius: 999px;
-  background: rgba(94, 240, 193, 0.1);
-  color: var(--accent-2);
-  font-size: 12px;
-  letter-spacing: 0.3px;
-  border: 1px solid rgba(94, 240, 193, 0.25);
+  padding: 7px 12px;
+  color: #a7f3bf;
+  background: rgba(34, 197, 94, 0.14);
+  font-size: 13px;
 }
 
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 18px 18px 16px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
-  margin-top: 16px;
+h1,
+h2,
+h3,
+p {
+  letter-spacing: 0;
 }
-.panel-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-.panel-heading h2 {
-  margin: 2px 0;
-  font-size: 22px;
-}
-.eyebrow {
+
+h1 {
   margin: 0;
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  color: var(--muted);
+  font-size: clamp(46px, 9vw, 118px);
+  line-height: 0.96;
 }
-.muted { color: var(--muted); }
+
+.subtitle {
+  max-width: 650px;
+  margin: 18px 0 0;
+  color: var(--text);
+  font-size: clamp(18px, 2.4vw, 26px);
+  line-height: 1.35;
+}
+
+.credit {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.credit a {
+  color: #9cf4ba;
+  text-decoration: none;
+}
+
+.credit a:hover {
+  text-decoration: underline;
+}
+
+.band {
+  padding: 48px clamp(20px, 5vw, 72px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
+    var(--bg);
+}
+
+.muted-band {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.section-heading {
+  width: min(1040px, 100%);
+  margin: 0 auto 24px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--ok);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+h2 {
+  margin: 0;
+  font-size: clamp(28px, 4.5vw, 52px);
+  line-height: 1.05;
+}
+
+.feature-grid,
+.setup-grid {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+article {
+  min-height: 210px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+article span {
+  color: var(--accent);
+  font-family: "Fira Code", "SFMono-Regular", ui-monospace, monospace;
+  font-size: 13px;
+}
+
+h3 {
+  margin: 26px 0 8px;
+  font-size: 24px;
+}
+
+article p,
+.copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(300px, 1fr);
+  gap: 20px;
+  align-items: center;
+}
 
 pre {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 14px;
+  margin: 0;
   overflow-x: auto;
-  margin: 12px 0 0;
-}
-code {
-  font-family: "SF Mono", "Fira Code", monospace;
-  font-size: 13px;
-  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  background: #030813;
+  box-shadow: var(--shadow);
 }
 
-@media (max-width: 760px) {
-  .hero h1 { font-size: 26px; }
+code {
+  color: #8decae;
+  font-family: "Fira Code", "SFMono-Regular", ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.copy {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 820px) {
+  .hero {
+    min-height: 72dvh;
+    align-items: end;
+    background:
+      linear-gradient(0deg, rgba(2, 6, 23, 0.96) 0%, rgba(2, 6, 23, 0.72) 58%, rgba(2, 6, 23, 0.24) 100%),
+      url("https://cdn-uploads.huggingface.co/production/uploads/671faa3a541a76b548647676/uEa13KsL5wtQREVZ1ixwc.png")
+        center top / cover no-repeat;
+  }
+
+  .feature-grid,
+  .setup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  article {
+    min-height: 0;
+  }
 }

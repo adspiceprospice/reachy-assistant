@@ -1,3 +1,42 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:0013aac9cbe5f78a2aed3ed4de5fab5c3afe36ff72950ac97e64bd5db462e3b9
-size 123931
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" role="img" aria-labelledby="title desc">
+  <title id="title">HeyRobo architecture</title>
+  <desc id="desc">Wake phrase detection starts an OpenAI Realtime session, which can call local robot tools and dispatch Codex relay tasks.</desc>
+  <rect width="960" height="360" rx="24" fill="#020617"/>
+  <g fill="none" stroke="#223044" stroke-width="2">
+    <rect x="40" y="92" width="190" height="132" rx="16"/>
+    <rect x="280" y="92" width="190" height="132" rx="16"/>
+    <rect x="520" y="92" width="190" height="132" rx="16"/>
+    <rect x="760" y="92" width="160" height="132" rx="16"/>
+  </g>
+  <g fill="#f1f7ff" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">
+    <text x="72" y="145">Wake Gate</text>
+    <text x="310" y="145">Realtime</text>
+    <text x="552" y="145">Robot Tools</text>
+    <text x="790" y="145">Codex</text>
+  </g>
+  <g fill="#a8b7c9" font-family="Inter, Arial, sans-serif" font-size="15">
+    <text x="72" y="178">Local Vosk listens for</text>
+    <text x="72" y="198">the configured phrase.</text>
+    <text x="310" y="178">OpenAI voice session</text>
+    <text x="310" y="198">runs while active.</text>
+    <text x="552" y="178">Movement, camera,</text>
+    <text x="552" y="198">and standby tools.</text>
+    <text x="790" y="178">WiFi relay starts</text>
+    <text x="790" y="198">branch tasks.</text>
+  </g>
+  <g stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M230 158h50"/>
+    <path d="M470 158h50"/>
+    <path d="M710 158h50"/>
+    <path d="m270 148 10 10-10 10"/>
+    <path d="m510 148 10 10-10 10"/>
+    <path d="m750 148 10 10-10 10"/>
+  </g>
+  <g fill="#38bdf8">
+    <circle cx="135" cy="250" r="8"/>
+    <circle cx="375" cy="250" r="8"/>
+    <circle cx="615" cy="250" r="8"/>
+    <circle cx="840" cy="250" r="8"/>
+  </g>
+  <text x="40" y="312" fill="#a8b7c9" font-family="Inter, Arial, sans-serif" font-size="14">HeyRobo returns to wake-word standby when the session times out or the assistant calls the standby tool.</text>
+</svg>
