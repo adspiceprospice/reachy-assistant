@@ -116,11 +116,12 @@ Responsibilities:
 Implementation shape:
 
 - Define a `WakeDetector` interface.
-- Start with a deterministic fake detector for tests.
-- Add the real detector behind that interface after hardware/runtime confirmation.
+- Use Vosk as the first production backend so the wake phrase remains app-configurable text.
+- Keep a deterministic fake detector for tests.
 - Read the wake phrase from app settings so it can be personalized without code edits.
+- Require a local Vosk model directory via `HEY_ROBO_WAKE_MODEL_PATH` or an app-instance `wake_models/` folder.
 
-Open question: choose the production wake backend after confirming target hardware and whether custom wake-word training is acceptable.
+Open question: validate the selected Vosk model on the physical Reachy Mini microphone and tune threshold/timeout if the room is noisy.
 
 ### 2. Realtime Voice Session
 
@@ -198,7 +199,8 @@ Implementation status:
 - Done: local Codex relay service with bearer-token auth and allowlisted workspaces.
 - Done: branch-before-edit behavior for relay tasks.
 - Done: Realtime tool `dispatch_codex_task`.
-- Pending: real offline wake-word detector that recognizes `HEY ROBO` before opening the Realtime session.
+- Done: local Vosk wake detector path and Realtime gating before cloud audio starts.
+- Pending: physical robot test with the installed wake model and microphone.
 
 ## Evaluation Plan
 

@@ -36,4 +36,6 @@ Setup complete: YES
 - Official conversation-template scaffold is complete in `hey_robo/`.
 - `git-lfs` is not installed; reference repo media assets were not fully fetched, but source files are available.
 - Implemented app settings fields, local Codex relay, branch-before-edit relay behavior, and `dispatch_codex_task` Realtime tool.
-- Still pending: real offline wake-word detector for `HEY ROBO` before OpenAI Realtime starts.
+- Implemented Vosk-backed local wake phrase gating. Realtime starts only after wake detection when `HEY_ROBO_WAKE_ENABLED=true`.
+- Wake model must be configured with `HEY_ROBO_WAKE_MODEL_PATH` or placed in the app instance under `wake_models/vosk-model-small-en-us-0.15`.
+- Still pending: physical robot test with an installed Vosk model and the Reachy Mini microphone.
