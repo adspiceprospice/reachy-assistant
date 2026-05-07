@@ -19,6 +19,9 @@ conversation template. It listens locally for a configurable wake phrase,
 starts an OpenAI Realtime voice session only after wake detection, and can
 dispatch authenticated Codex tasks to a relay on the local WiFi network.
 
+This repository root is the Reachy Mini app root. The Python package remains
+`hey_robo` under `src/hey_robo`, and the app entrypoint remains `hey_robo`.
+
 ## Wake Phrase
 
 Wake gating is enabled by default with `HEY_ROBO_WAKE_ENABLED=true`.
