@@ -130,6 +130,51 @@ class BreathingMove(Move):  # type: ignore
         return (head_pose, antennas, 0.0)
 
 
+class IndicatorPoseMove(Move):  # type: ignore
+    """Move smoothly to a state-indicator pose and optionally hold it."""
+
+    def __init__(
+        self,
+        *,
+        target_head_pose: NDArray[np.float32],
+        start_head_pose: NDArray[np.float32],
+        target_antennas: Tuple[float, float] = (0.0, 0.0),
+        start_antennas: Tuple[float, float] = (0.0, 0.0),
+        target_body_yaw: float = 0.0,
+        start_body_yaw: float = 0.0,
+        transition_duration: float = 0.8,
+        hold: bool = False,
+    ):
+        """Initialize the indicator pose move."""
+        self.target_head_pose = target_head_pose
+        self.start_head_pose = start_head_pose
+        self.target_antennas = target_antennas
+        self.start_antennas = start_antennas
+        self.target_body_yaw = target_body_yaw
+        self.start_body_yaw = start_body_yaw
+        self.transition_duration = max(0.01, float(transition_duration))
+        self.hold = hold
+
+    @property
+    def duration(self) -> float:
+        """Duration property required by official Move interface."""
+        return float("inf") if self.hold else self.transition_duration
+
+    def evaluate(self, t: float) -> tuple[NDArray[np.float64] | None, NDArray[np.float64] | None, float | None]:
+        """Evaluate the indicator pose transition."""
+        interpolation_t = min(1.0, max(0.0, t / self.transition_duration))
+        head_pose = linear_pose_interpolation(self.start_head_pose, self.target_head_pose, interpolation_t)
+        antennas = np.array(
+            [
+                self.start_antennas[0] + (self.target_antennas[0] - self.start_antennas[0]) * interpolation_t,
+                self.start_antennas[1] + (self.target_antennas[1] - self.start_antennas[1]) * interpolation_t,
+            ],
+            dtype=np.float64,
+        )
+        body_yaw = self.start_body_yaw + (self.target_body_yaw - self.start_body_yaw) * interpolation_t
+        return (head_pose, antennas, body_yaw)
+
+
 def combine_full_body(primary_pose: FullBodyPose, secondary_pose: FullBodyPose) -> FullBodyPose:
     """Combine primary and secondary full body poses.
 

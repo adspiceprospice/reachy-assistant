@@ -46,6 +46,24 @@ HEY_ROBO_WAKE_ENABLED=false
 During a live conversation, say something like "go to sleep" or "standby" to
 close the active Realtime session and return to local wake-phrase listening.
 
+## State Pose Indicator
+
+HeyRobo uses a visible pose cue so you can tell whether it is only listening
+locally for the wake phrase or actively connected to Realtime.
+
+When wake mode is armed, the head moves into a held standby/down pose. After the
+wake phrase starts Realtime, the held standby pose is cleared and the head pops
+up into an active/listening pose. When the session times out or the user asks the
+agent to sleep, the app returns to the held standby pose.
+
+The defaults are conservative, but they can be adjusted:
+
+```bash
+HEY_ROBO_STATE_POSES_ENABLED=true
+HEY_ROBO_ACTIVE_POSE_PITCH_DEGREES=-18
+HEY_ROBO_STANDBY_POSE_PITCH_DEGREES=24
+```
+
 ## Language Preferences
 
 Set one or more Realtime languages in the app settings, ordered by likelihood.
