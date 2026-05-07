@@ -6,6 +6,7 @@ __pycache__/
 
 # Virtual environments
 .venv/
+.relay_venv/
 venv/
 ENV/
 env/

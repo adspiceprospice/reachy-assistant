@@ -64,6 +64,99 @@ The voice agent can call `dispatch_codex_task`, which sends tasks to the local
 relay configured in settings. The relay requires a bearer token, allowlisted
 workspaces, and creates a `codex/hey-robo-*` branch before running Codex.
 
+Run the relay on the machine that has the Codex CLI installed. When that machine
+is not the Reachy Mini itself, bind the relay to `0.0.0.0` and configure Reachy
+with the relay machine's WiFi/LAN IP address.
+
+### Start the relay machine
+
+From this repository on the Codex machine:
+
+```bash
+python3 -m venv .relay_venv
+.relay_venv/bin/python -m pip install fastapi uvicorn pydantic
+
+export HEY_ROBO_CODEX_RELAY_TOKEN="$(openssl rand -hex 24)"
+export HEY_ROBO_RELAY_HOST=0.0.0.0
+export HEY_ROBO_RELAY_PORT=8766
+export HEY_ROBO_CODEX_BINARY="$(command -v codex)"
+export HEY_ROBO_CODEX_WORKSPACES="current=/absolute/path/to/a/clean/git/repo"
+
+PYTHONPATH=src .relay_venv/bin/python -m hey_robo.codex_relay
+```
+
+`HEY_ROBO_CODEX_WORKSPACES` is an allowlist. Use semicolons for multiple
+repositories:
+
+```bash
+export HEY_ROBO_CODEX_WORKSPACES="app=/path/to/app;docs=/path/to/docs"
+```
+
+The relay refuses to run Codex when the selected workspace has uncommitted
+changes. This is intentional: it avoids mixing voice-triggered edits with work
+already in progress. Relay logs are written to `~/.hey_robo/codex_tasks` unless
+`HEY_ROBO_CODEX_TASK_LOG_DIR` is set.
+
+### Configure Reachy
+
+Find the relay machine's WiFi/LAN IP:
+
+```bash
+ipconfig getifaddr en0     # macOS WiFi
+hostname -I                # Linux
+```
+
+In the Reachy Mini installed app settings, set:
+
+```bash
+Codex relay URL: http://<relay-machine-ip>:8766
+Codex relay token: <same token as HEY_ROBO_CODEX_RELAY_TOKEN>
+Default workspace ID: current
+```
+
+Do not use `127.0.0.1` in Reachy settings unless the relay is running on Reachy
+itself.
+
+### Smoke test
+
+First test the network path from Reachy:
+
+```bash
+curl http://<relay-machine-ip>:8766/health
+```
+
+For a safe end-to-end test, allowlist a scratch repository on the relay machine:
+
+```bash
+mkdir -p ~/hey-robo-codex-smoke
+cd ~/hey-robo-codex-smoke
+git init
+git config user.email "you@example.com"
+git config user.name "HeyRobo Test"
+printf "# HeyRobo Codex smoke\n" > README.md
+git add README.md
+git commit -m "init smoke workspace"
+
+export HEY_ROBO_CODEX_WORKSPACES="smoke=$HOME/hey-robo-codex-smoke"
+```
+
+Restart the relay, set Reachy's default workspace ID to `smoke`, then say:
+
+```text
+Hey Robo, ask Codex to append one sentence to the README saying the relay smoke test passed.
+```
+
+The relay should create a `codex/hey-robo-*` branch in the scratch repository
+and the app log window should show the `dispatch_codex_task` call. You can also
+test with curl:
+
+```bash
+curl -s -X POST "http://<relay-machine-ip>:8766/tasks" \
+  -H "Authorization: Bearer <relay-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"workspace_id":"smoke","task":"Append one sentence to README.md saying the relay smoke test passed."}'
+```
+
 ## Settings Dashboard
 
 The installed app page lets you manage the OpenAI API key, wake phrase, Vosk
