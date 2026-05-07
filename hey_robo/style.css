@@ -52,6 +52,17 @@ body {
   color: var(--muted);
   line-height: 1.5;
 }
+.credit {
+  margin-top: 8px;
+  font-size: 14px;
+}
+.credit a {
+  color: var(--accent-2);
+  text-decoration: none;
+}
+.credit a:hover {
+  text-decoration: underline;
+}
 .pill {
   display: inline-flex;
   align-items: center;

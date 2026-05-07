@@ -12,6 +12,8 @@ tags:
 
 # Hey Robo
 
+Made by Adrian with Codex - [curiosityai.nl](https://curiosityai.nl)
+
 Hey Robo is a Reachy Mini Wireless assistant app forked from the official
 conversation template. It listens locally for a configurable wake phrase,
 starts an OpenAI Realtime voice session only after wake detection, and can
