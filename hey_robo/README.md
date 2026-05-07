@@ -1,0 +1,60 @@
+---
+title: Hey Robo
+emoji: 🤖
+colorFrom: purple
+colorTo: gray
+sdk: static
+pinned: false
+tags:
+  - reachy_mini
+  - reachy_mini_python_app
+---
+
+# Hey Robo
+
+Hey Robo is a Reachy Mini Wireless assistant app forked from the official
+conversation template. It listens locally for a configurable wake phrase,
+starts an OpenAI Realtime voice session only after wake detection, and can
+dispatch authenticated Codex tasks to a relay on the local WiFi network.
+
+## Wake Phrase
+
+Wake gating is enabled by default with `HEY_ROBO_WAKE_ENABLED=true`.
+
+The first production wake backend is Vosk because it can match a personalized
+text phrase such as `HEY ROBO` without sending ambient audio to a cloud service.
+Configure a local Vosk model directory in app settings or with:
+
+```bash
+HEY_ROBO_WAKE_MODEL_PATH=/path/to/vosk-model-small-en-us-0.15
+```
+
+If no model is configured, the app does not open Realtime automatically. The
+settings page reports the missing model path so it can be fixed before testing.
+
+For local development without wake gating:
+
+```bash
+HEY_ROBO_WAKE_ENABLED=false
+```
+
+During a live conversation, say something like "go to sleep" or "standby" to
+close the active Realtime session and return to local wake-phrase listening.
+
+## Codex Relay
+
+The voice agent can call `dispatch_codex_task`, which sends tasks to the local
+relay configured in settings. The relay requires a bearer token, allowlisted
+workspaces, and creates a `codex/hey-robo-*` branch before running Codex.
+
+Use the `src/hey_robo/profiles/_hey_robo_locked_profile` folder to customize your own app from this template:
+- Edit instructions `_hey_robo_locked_profile/instructions.txt`
+- Edit available tools in `_hey_robo_locked_profile/tools.txt`
+- You can create your own tools in `_hey_robo_locked_profile` by subclassing the `Tool` class.
+
+Do not forget to customize:
+- this `README.md` file
+- the `index.html` file (Hugging Face Spaces landing page)
+- the `src/hey_robo/static/index.html` (the web app parameters page)
+
+The original README from the conversation app is available in `README_OLD.md`.
