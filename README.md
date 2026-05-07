@@ -46,6 +46,18 @@ HEY_ROBO_WAKE_ENABLED=false
 During a live conversation, say something like "go to sleep" or "standby" to
 close the active Realtime session and return to local wake-phrase listening.
 
+## Language Preferences
+
+Set one or more Realtime languages in the app settings, ordered by likelihood.
+For example:
+
+```bash
+HEY_ROBO_REALTIME_LANGUAGES=Dutch, English
+```
+
+The first language is used as the strongest startup hint after the wake phrase,
+and the full ordered list is included in the Realtime session instructions.
+
 ## Codex Relay
 
 The voice agent can call `dispatch_codex_task`, which sends tasks to the local
@@ -55,10 +67,10 @@ workspaces, and creates a `codex/hey-robo-*` branch before running Codex.
 ## Settings Dashboard
 
 The installed app page lets you manage the OpenAI API key, wake phrase, Vosk
-model path, Realtime voice, Codex relay URL, relay token, and default workspace.
-It also includes a live log window for wake events, Realtime usage, tool calls,
-Codex relay activity, and errors. API keys and bearer tokens are redacted before
-logs are streamed to the browser.
+model path, Realtime voice, Realtime language order, Codex relay URL, relay
+token, and default workspace. It also includes a live log window for wake
+events, Realtime usage, tool calls, Codex relay activity, and errors. API keys
+and bearer tokens are redacted before logs are streamed to the browser.
 
 Use the `src/hey_robo/profiles/_hey_robo_locked_profile` folder to customize your own app from this template:
 - Edit instructions `_hey_robo_locked_profile/instructions.txt`

@@ -26,7 +26,7 @@ from scipy.signal import resample
 
 from reachy_mini import ReachyMini
 from reachy_mini.media.media_manager import MediaBackend
-from hey_robo.config import LOCKED_PROFILE, config
+from hey_robo.config import LOCKED_PROFILE, config, parse_realtime_languages, realtime_languages_to_env
 from hey_robo.wake_word import (
     WakeDetection,
     WakeWordDetector,
@@ -411,6 +411,7 @@ class LocalStream:
             wake_model_path: str | None = None
             wake_session_timeout_seconds: float | None = None
             realtime_voice: str | None = None
+            realtime_languages: str | None = None
             codex_relay_url: str | None = None
             codex_relay_token: str | None = None
             codex_default_workspace: str | None = None
@@ -431,6 +432,7 @@ class LocalStream:
                 "HEY_ROBO_WAKE_MODEL_PATH": "WAKE_MODEL_PATH",
                 "HEY_ROBO_WAKE_SESSION_TIMEOUT_SECONDS": "WAKE_SESSION_TIMEOUT_SECONDS",
                 "HEY_ROBO_REALTIME_VOICE": "REALTIME_VOICE",
+                "HEY_ROBO_REALTIME_LANGUAGES": "REALTIME_LANGUAGES",
                 "HEY_ROBO_CODEX_RELAY_URL": "CODEX_RELAY_URL",
                 "HEY_ROBO_CODEX_RELAY_TOKEN": "CODEX_RELAY_TOKEN",
                 "HEY_ROBO_CODEX_DEFAULT_WORKSPACE": "CODEX_DEFAULT_WORKSPACE",
@@ -444,6 +446,8 @@ class LocalStream:
                         elif env_key == "HEY_ROBO_WAKE_SESSION_TIMEOUT_SECONDS":
                             value = max(5.0, float(value))
                             self._session_timeout_seconds = value
+                        elif env_key == "HEY_ROBO_REALTIME_LANGUAGES":
+                            value = parse_realtime_languages(value)
                         setattr(config, attr, value)
                     except Exception:
                         pass
@@ -487,6 +491,9 @@ class LocalStream:
                     "wake_status": wake_status.message,
                     "wake_session_timeout_seconds": self._session_timeout_seconds,
                     "realtime_voice": getattr(config, "REALTIME_VOICE", "cedar"),
+                    "realtime_languages": realtime_languages_to_env(
+                        getattr(config, "REALTIME_LANGUAGES", None)
+                    ),
                     "codex_relay_url": getattr(config, "CODEX_RELAY_URL", "http://127.0.0.1:8766"),
                     "has_codex_relay_token": has_relay_token,
                     "codex_default_workspace": getattr(config, "CODEX_DEFAULT_WORKSPACE", "current"),
@@ -575,6 +582,10 @@ class LocalStream:
                 values["HEY_ROBO_WAKE_SESSION_TIMEOUT_SECONDS"] = str(payload.wake_session_timeout_seconds)
             if payload.realtime_voice and payload.realtime_voice.strip():
                 values["HEY_ROBO_REALTIME_VOICE"] = payload.realtime_voice
+            if payload.realtime_languages is not None:
+                values["HEY_ROBO_REALTIME_LANGUAGES"] = (
+                    realtime_languages_to_env(payload.realtime_languages) or "English"
+                )
             if payload.codex_relay_url and payload.codex_relay_url.strip():
                 values["HEY_ROBO_CODEX_RELAY_URL"] = payload.codex_relay_url
             if payload.codex_relay_token and payload.codex_relay_token.strip():
@@ -674,6 +685,12 @@ class LocalStream:
                     if realtime_voice:
                         try:
                             config.REALTIME_VOICE = realtime_voice.strip()
+                        except Exception:
+                            pass
+                    realtime_languages = os.getenv("HEY_ROBO_REALTIME_LANGUAGES")
+                    if realtime_languages is not None:
+                        try:
+                            config.REALTIME_LANGUAGES = parse_realtime_languages(realtime_languages)
                         except Exception:
                             pass
                     relay_url = os.getenv("HEY_ROBO_CODEX_RELAY_URL")

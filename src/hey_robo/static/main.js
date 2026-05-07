@@ -105,9 +105,12 @@ function applyStatus(st) {
   const wakeEnabled = st.wake_enabled !== false;
   const relayUrl = st.codex_relay_url || "http://127.0.0.1:8766";
   const workspace = st.codex_default_workspace || "current";
+  const languages = st.realtime_languages || "English";
+  const primaryLanguage = languages.split(",")[0].trim() || "English";
 
   setText("metric-key", state.hasKey ? "Ready" : "Missing");
   setText("metric-voice", st.realtime_voice || "cedar");
+  setText("metric-language-detail", `Primary ${primaryLanguage}`);
   setText("metric-relay", relayUrl.replace(/^https?:\/\//, ""));
   setText("metric-relay-detail", `Workspace ${workspace}`);
 
@@ -135,6 +138,7 @@ function applyStatus(st) {
   byId("wake-timeout").value = st.wake_session_timeout_seconds || 45;
   byId("wake-model-path").value = st.wake_model_path || "";
   byId("voice").value = st.realtime_voice || "cedar";
+  byId("languages").value = languages;
   byId("relay-url").value = relayUrl;
   byId("workspace-id").value = workspace;
 
@@ -296,6 +300,7 @@ function collectSettings() {
       wake_model_path: byId("wake-model-path").value.trim() || undefined,
       wake_session_timeout_seconds: Number.parseFloat(byId("wake-timeout").value) || 45,
       realtime_voice: byId("voice").value,
+      realtime_languages: byId("languages").value.trim() || "English",
       codex_relay_url: byId("relay-url").value.trim(),
       codex_relay_token: byId("relay-token").value.trim() || undefined,
       codex_default_workspace: byId("workspace-id").value.trim(),

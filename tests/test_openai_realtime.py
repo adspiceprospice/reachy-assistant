@@ -9,7 +9,12 @@ import pytest
 
 import hey_robo.openai_realtime as rt_mod
 import hey_robo.tools.background_tool_manager as btm_mod
-from hey_robo.openai_realtime import OpenaiRealtimeHandler, _compute_response_cost
+from hey_robo.openai_realtime import (
+    OpenaiRealtimeHandler,
+    _compute_response_cost,
+    _build_transcription_config,
+    _looks_like_standby_request,
+)
 from hey_robo.tools.core_tools import ToolDependencies
 from hey_robo.tools.tool_constants import ToolState
 from hey_robo.tools.background_tool_manager import ToolCallRoutine, ToolNotification
@@ -36,6 +41,29 @@ def test_format_timestamp_uses_wall_clock() -> None:
     # Extract year from "[YYYY-MM-DD ...]"
     year = int(formatted[1:5])
     assert year == datetime.now(timezone.utc).year
+
+
+def test_transcription_config_uses_primary_language_hint(monkeypatch: Any) -> None:
+    """Realtime transcription should use the first configured language when known."""
+    monkeypatch.setattr(rt_mod.config, "REALTIME_LANGUAGES", ["Dutch", "English"], raising=False)
+
+    assert _build_transcription_config() == {"model": "gpt-4o-transcribe", "language": "nl"}
+
+
+def test_transcription_config_omits_unknown_language_hint(monkeypatch: Any) -> None:
+    """Unknown free-form language labels should not send a bad transcription hint."""
+    monkeypatch.setattr(rt_mod.config, "REALTIME_LANGUAGES", ["Klingon", "English"], raising=False)
+
+    assert _build_transcription_config() == {"model": "gpt-4o-transcribe"}
+
+
+def test_standby_request_detection_handles_common_sleep_commands() -> None:
+    """Local transcript matching should catch sleep commands without false negations."""
+    assert _looks_like_standby_request("Go to sleep now please") is True
+    assert _looks_like_standby_request("Ga slapen en wacht op hey robo") is True
+    assert _looks_like_standby_request("stand by and wait for hey robo") is True
+    assert _looks_like_standby_request("Please do not sleep yet") is False
+    assert _looks_like_standby_request("Ga niet slapen") is False
 
 @pytest.mark.asyncio
 async def test_standby_tool_result_requests_standby_without_followup_response() -> None:

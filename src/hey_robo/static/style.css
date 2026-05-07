@@ -270,6 +270,10 @@ h2 {
   margin: 0 0 14px;
 }
 
+.field-group .status {
+  margin-top: 6px;
+}
+
 label {
   display: block;
   margin: 0 0 6px;

@@ -3,7 +3,7 @@ import sys
 import logging
 from pathlib import Path
 
-from hey_robo.config import DEFAULT_PROFILES_DIRECTORY, config
+from hey_robo.config import DEFAULT_PROFILES_DIRECTORY, config, get_realtime_languages
 
 
 logger = logging.getLogger(__name__)
@@ -12,6 +12,26 @@ logger = logging.getLogger(__name__)
 PROMPTS_LIBRARY_DIRECTORY = Path(__file__).parent / "prompts"
 INSTRUCTIONS_FILENAME = "instructions.txt"
 VOICE_FILENAME = "voice.txt"
+
+
+def _format_language_preferences() -> str:
+    """Build the runtime language instruction block from app settings."""
+    languages = get_realtime_languages()
+    primary = languages[0]
+    if len(languages) == 1:
+        language_line = primary
+    else:
+        language_line = ", ".join(
+            f"{idx + 1}. {language}" for idx, language in enumerate(languages)
+        )
+
+    return (
+        "Runtime language preference:\n"
+        f"- The user is most likely to address you in these languages, ordered by likelihood: {language_line}.\n"
+        f"- Treat {primary} as the default immediately after the wake phrase when speech is ambiguous.\n"
+        "- Detect the user's actual language from their speech and respond in that same language unless they ask otherwise.\n"
+        "- Do not switch to an unrelated language."
+    )
 
 
 def _expand_prompt_includes(content: str) -> str:
@@ -81,7 +101,7 @@ def get_session_instructions() -> str:
             if instructions:
                 # Expand [<name>] placeholders with content from prompts library
                 expanded_instructions = _expand_prompt_includes(instructions)
-                return expanded_instructions
+                return f"{expanded_instructions}\n\n{_format_language_preferences()}"
             logger.error(f"Profile '{profile}' has empty {INSTRUCTIONS_FILENAME}")
             sys.exit(1)
         logger.error(f"Profile {profile} has no {INSTRUCTIONS_FILENAME}")
