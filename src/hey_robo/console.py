@@ -96,6 +96,53 @@ class LocalStream:
         if hasattr(self.handler, "deps"):
             self.handler.deps.standby_callback = self.request_standby
 
+    def _set_movement_output_suspended(self, movement_manager: object, suspended: bool) -> None:
+        """Tell the motion loop to pause or resume direct robot output, if supported."""
+        setter = getattr(movement_manager, "set_output_suspended", None)
+        if callable(setter):
+            setter(suspended)
+
+    def _apply_sdk_standby_sleep_pose(self, movement_manager: object, robot: ReachyMini) -> bool:
+        """Move to Reachy's built-in sleep pose and optionally turn torque off."""
+        mode = str(getattr(config, "STANDBY_POSE_MODE", "sleep_off") or "sleep_off").strip().lower()
+        mode = mode.replace("-", "_")
+        if mode not in {"sleep", "sleep_off", "off"}:
+            return False
+
+        goto_sleep = getattr(robot, "goto_sleep", None)
+        if not callable(goto_sleep):
+            return False
+
+        try:
+            clear_queue = getattr(movement_manager, "clear_move_queue", None)
+            if callable(clear_queue):
+                clear_queue()
+            self._set_movement_output_suspended(movement_manager, True)
+            time.sleep(0.05)
+
+            goto_sleep()
+
+            if mode in {"sleep_off", "off"} and bool(getattr(config, "STANDBY_DISABLE_MOTORS", True)):
+                disable_motors = getattr(robot, "disable_motors", None)
+                if callable(disable_motors):
+                    disable_motors()
+            logger.info("Applied Reachy Mini SDK %s standby pose", mode)
+            return True
+        except Exception as exc:
+            self._set_movement_output_suspended(movement_manager, False)
+            logger.warning("Failed to apply Reachy Mini SDK standby pose: %s", exc)
+            return False
+
+    def _resume_motion_for_realtime_active(self, movement_manager: object, robot: ReachyMini) -> None:
+        """Re-enable torque/output before showing the active Realtime pose cue."""
+        enable_motors = getattr(robot, "enable_motors", None)
+        if callable(enable_motors):
+            try:
+                enable_motors()
+            except Exception as exc:
+                logger.warning("Failed to re-enable motors for active pose: %s", exc)
+        self._set_movement_output_suspended(movement_manager, False)
+
     def _queue_realtime_state_pose(self, state: Literal["active", "standby"]) -> None:
         """Queue the visible robot posture for Realtime active vs wake standby."""
         if not bool(getattr(config, "STATE_POSES_ENABLED", True)):
@@ -107,10 +154,16 @@ class LocalStream:
             return
 
         try:
+            robot = getattr(deps, "reachy_mini", self._robot)
+
+            if state == "standby" and self._apply_sdk_standby_sleep_pose(movement_manager, robot):
+                return
+            if state == "active":
+                self._resume_motion_for_realtime_active(movement_manager, robot)
+
             from reachy_mini.utils import create_head_pose
             from hey_robo.moves import IndicatorPoseMove
 
-            robot = getattr(deps, "reachy_mini", self._robot)
             try:
                 current_head_pose = robot.get_current_head_pose()
             except Exception:
@@ -554,6 +607,9 @@ class LocalStream:
                     "wake_detector_ready": wake_status.ready,
                     "wake_status": wake_status.message,
                     "wake_session_timeout_seconds": self._session_timeout_seconds,
+                    "state_poses_enabled": bool(getattr(config, "STATE_POSES_ENABLED", True)),
+                    "standby_pose_mode": getattr(config, "STANDBY_POSE_MODE", "sleep_off"),
+                    "standby_disable_motors": bool(getattr(config, "STANDBY_DISABLE_MOTORS", True)),
                     "realtime_voice": getattr(config, "REALTIME_VOICE", "cedar"),
                     "realtime_languages": realtime_languages_to_env(
                         getattr(config, "REALTIME_LANGUAGES", None)

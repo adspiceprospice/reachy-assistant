@@ -82,6 +82,7 @@ if importlib.util.find_spec("reachy_mini") is None:
     sys.modules["reachy_mini.media"] = media_module
     sys.modules["reachy_mini.media.media_manager"] = media_manager_module
 
+from hey_robo import console as console_module
 from hey_robo.config import config
 from hey_robo.console import LocalStream
 from hey_robo.wake_word import WakeDetection, WakeDetectorStatus
@@ -135,6 +136,30 @@ class _FakeRobot:
     def __init__(self, frames: list[np.ndarray]) -> None:
         """Initialize fake robot media."""
         self.media = _FakeMedia(frames)
+
+
+class _FakeMovementManager:
+    """Track movement-manager commands issued by LocalStream."""
+
+    def __init__(self) -> None:
+        """Initialize command tracking."""
+        self.commands: list[tuple[str, object | None]] = []
+
+    def clear_move_queue(self) -> None:
+        """Record a queue clear request."""
+        self.commands.append(("clear_move_queue", None))
+
+    def set_output_suspended(self, suspended: bool) -> None:
+        """Record an output suspend/resume request."""
+        self.commands.append(("set_output_suspended", suspended))
+
+    def queue_move(self, move: object) -> None:
+        """Record a queued move."""
+        self.commands.append(("queue_move", move))
+
+    def set_moving_state(self, duration: float) -> None:
+        """Record a moving-state marker."""
+        self.commands.append(("set_moving_state", duration))
 
 
 class _FakeHandler:
@@ -214,3 +239,28 @@ async def test_wake_state_transitions_queue_visible_pose_indicators(monkeypatch)
     await stream._deactivate_realtime("test standby")
 
     assert queued_states == ["active", "standby"]
+
+
+def test_standby_uses_reachy_sleep_pose_and_torque_off(monkeypatch) -> None:
+    """Standby should use the SDK sleep pose instead of holding a pitched target."""
+    monkeypatch.setattr(config, "STATE_POSES_ENABLED", True, raising=False)
+    monkeypatch.setattr(config, "STANDBY_POSE_MODE", "sleep_off", raising=False)
+    monkeypatch.setattr(config, "STANDBY_DISABLE_MOTORS", True, raising=False)
+    monkeypatch.setattr(console_module.time, "sleep", lambda _seconds: None)
+
+    robot = _FakeRobot([])
+    robot_calls: list[str] = []
+    robot.goto_sleep = lambda: robot_calls.append("goto_sleep")  # type: ignore[attr-defined]
+    robot.disable_motors = lambda: robot_calls.append("disable_motors")  # type: ignore[attr-defined]
+    movement_manager = _FakeMovementManager()
+    handler = _FakeHandler()
+    handler.deps = types.SimpleNamespace(movement_manager=movement_manager, reachy_mini=robot)
+    stream = LocalStream(handler, robot)
+
+    stream._queue_realtime_state_pose("standby")
+
+    assert movement_manager.commands == [
+        ("clear_move_queue", None),
+        ("set_output_suspended", True),
+    ]
+    assert robot_calls == ["goto_sleep", "disable_motors"]

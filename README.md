@@ -51,18 +51,26 @@ close the active Realtime session and return to local wake-phrase listening.
 HeyRobo uses a visible pose cue so you can tell whether it is only listening
 locally for the wake phrase or actively connected to Realtime.
 
-When wake mode is armed, the head moves into a held standby/down pose. After the
-wake phrase starts Realtime, the held standby pose is cleared and the head pops
-up into an active/listening pose. When the session times out or the user asks the
-agent to sleep, the app returns to the held standby pose.
+When wake mode is armed, the robot now uses Reachy Mini's SDK sleep pose and
+then disables motor torque. That leaves the head in the lowest official standby
+position without keeping the motors under tension. After the wake phrase starts
+Realtime, HeyRobo re-enables the motors, resumes the motion loop, and pops the
+head up into an active/listening pose. When the session times out or the user
+asks the agent to sleep, the app returns to the torque-off sleep pose.
 
 The defaults are conservative, but they can be adjusted:
 
 ```bash
 HEY_ROBO_STATE_POSES_ENABLED=true
+HEY_ROBO_STANDBY_POSE_MODE=sleep_off
+HEY_ROBO_STANDBY_DISABLE_MOTORS=true
 HEY_ROBO_ACTIVE_POSE_PITCH_DEGREES=-18
+# Only used when HEY_ROBO_STANDBY_POSE_MODE=pose.
 HEY_ROBO_STANDBY_POSE_PITCH_DEGREES=24
 ```
+
+`HEY_ROBO_STANDBY_POSE_MODE=pose` restores the older held down-pitch cue. Keep
+the default `sleep_off` mode for normal wake-word standby.
 
 ## Language Preferences
 
