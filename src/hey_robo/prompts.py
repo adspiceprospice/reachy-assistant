@@ -3,7 +3,12 @@ import sys
 import logging
 from pathlib import Path
 
-from hey_robo.config import DEFAULT_PROFILES_DIRECTORY, config, get_realtime_languages
+from hey_robo.config import (
+    DEFAULT_PROFILES_DIRECTORY,
+    config,
+    get_realtime_languages,
+    get_standby_request_phrases,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -34,6 +39,20 @@ def _format_language_preferences() -> str:
         "- Once the user clearly speaks one of the expected languages, respond in that same language unless they ask otherwise.\n\n"
         "## Unclear Audio\n"
         f"- If recognition appears unrelated to the expected languages, ask briefly in {primary} for the user to repeat."
+    )
+
+
+def _format_standby_preferences() -> str:
+    """Build the runtime standby command instruction block from app settings."""
+    phrases = get_standby_request_phrases()
+    phrase_line = ", ".join(f'"{phrase}"' for phrase in phrases)
+    wake_phrase = str(getattr(config, "WAKE_PHRASE", "HEY ROBO") or "HEY ROBO").strip()
+    return (
+        "## Standby Commands\n"
+        f"- Configured sleep or standby phrases: {phrase_line}.\n"
+        "- If the user says one of these phrases or clearly asks you to sleep, stop listening, or wait, call the enter_standby tool immediately.\n"
+        "- Do not continue the conversation after a standby request.\n"
+        f"- After standby, wait for the local wake phrase \"{wake_phrase}\" before continuing."
     )
 
 
@@ -104,7 +123,7 @@ def get_session_instructions() -> str:
             if instructions:
                 # Expand [<name>] placeholders with content from prompts library
                 expanded_instructions = _expand_prompt_includes(instructions)
-                return f"{expanded_instructions}\n\n{_format_language_preferences()}"
+                return f"{expanded_instructions}\n\n{_format_language_preferences()}\n\n{_format_standby_preferences()}"
             logger.error(f"Profile '{profile}' has empty {INSTRUCTIONS_FILENAME}")
             sys.exit(1)
         logger.error(f"Profile {profile} has no {INSTRUCTIONS_FILENAME}")

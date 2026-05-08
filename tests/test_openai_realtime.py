@@ -91,6 +91,16 @@ def test_standby_request_detection_handles_common_sleep_commands() -> None:
     assert _looks_like_standby_request("Please do not sleep yet") is False
     assert _looks_like_standby_request("Ga niet slapen") is False
 
+
+def test_standby_request_detection_uses_configured_phrases(monkeypatch: Any) -> None:
+    """Custom sleep phrases should use the same local transcript matcher."""
+    monkeypatch.setattr(rt_mod.config, "STANDBY_REQUEST_PHRASES", ["nap time", "power down"], raising=False)
+
+    assert _looks_like_standby_request("Okay, nap time please") is True
+    assert _looks_like_standby_request("Please power down now") is True
+    assert _looks_like_standby_request("Go to sleep now please") is False
+
+
 @pytest.mark.asyncio
 async def test_standby_tool_result_requests_standby_without_followup_response() -> None:
     """Standby should close the session path instead of asking Realtime to speak again."""

@@ -137,6 +137,8 @@ function applyStatus(st) {
   byId("wake-enabled").checked = wakeEnabled;
   byId("wake-phrase").value = st.wake_phrase || "HEY ROBO";
   byId("wake-timeout").value = st.wake_session_timeout_seconds || 45;
+  byId("standby-phrases").value =
+    st.standby_request_phrases || "go to sleep, standby, stop listening, wait for the wake phrase";
   byId("wake-model-path").value = st.wake_model_path || "";
   byId("model-name").value = modelName;
   byId("voice").value = st.realtime_voice || "cedar";
@@ -301,6 +303,7 @@ function collectSettings() {
       wake_phrase: byId("wake-phrase").value.trim(),
       wake_model_path: byId("wake-model-path").value.trim() || undefined,
       wake_session_timeout_seconds: Number.parseFloat(byId("wake-timeout").value) || 45,
+      standby_request_phrases: byId("standby-phrases").value.trim(),
       model_name: byId("model-name").value,
       realtime_voice: byId("voice").value,
       realtime_languages: byId("languages").value.trim() || "English",

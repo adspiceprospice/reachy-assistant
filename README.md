@@ -50,6 +50,20 @@ HEY_ROBO_WAKE_ENABLED=false
 During a live conversation, say something like "go to sleep" or "standby" to
 close the active Realtime session and return to local wake-phrase listening.
 
+## Sleep Phrases
+
+The settings page includes a Sleep phrases field. Use it to define the words
+that should close the active Realtime session and return HeyRobo to local
+wake-word standby.
+
+```bash
+HEY_ROBO_STANDBY_REQUEST_PHRASES=go to sleep, standby, stop listening, wait for the wake phrase
+```
+
+The same phrase list is used by local transcript matching and included in the
+Realtime session instructions, so both the local guard and the model understand
+the configured sleep commands.
+
 ## State Pose Indicator
 
 HeyRobo uses a visible pose cue so you can tell whether it is only listening

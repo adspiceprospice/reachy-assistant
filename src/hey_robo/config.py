@@ -13,6 +13,29 @@ REALTIME_MODEL_OPTIONS = (
     "gpt-realtime-2",
     "gpt-realtime",
 )
+DEFAULT_STANDBY_REQUEST_PHRASES = (
+    "go to sleep",
+    "go sleep",
+    "sleep now",
+    "please sleep",
+    "standby",
+    "stand by",
+    "go to standby",
+    "back to standby",
+    "return to standby",
+    "go quiet",
+    "be quiet",
+    "stop listening",
+    "stop the conversation",
+    "end the conversation",
+    "wait for the wake phrase",
+    "listen for hey robo",
+    "ga slapen",
+    "ga naar standby",
+    "terug naar standby",
+    "stop met luisteren",
+    "wacht op hey robo",
+)
 
 _LANGUAGE_CODE_ALIASES = {
     "afrikaans": "af",
@@ -161,6 +184,43 @@ def realtime_languages_to_env(value: object | None) -> str:
     return ", ".join(parse_realtime_languages(value))
 
 
+def parse_control_phrases(value: object | None, default: tuple[str, ...]) -> list[str]:
+    """Parse a user-editable phrase list for local voice controls."""
+    if value is None:
+        parts = list(default)
+    elif isinstance(value, (list, tuple)):
+        parts = [str(item).strip() for item in value]
+    else:
+        raw = str(value).replace("\n", ",").replace(";", ",")
+        parts = [part.strip() for part in raw.split(",")]
+
+    phrases: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        cleaned = " ".join(part.strip().strip('"').strip("'").split())
+        if not cleaned:
+            continue
+        key = cleaned.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        phrases.append(cleaned)
+        if len(phrases) >= 32:
+            break
+
+    return phrases or list(default)
+
+
+def parse_standby_request_phrases(value: object | None) -> list[str]:
+    """Parse phrases that should return the active Realtime session to standby."""
+    return parse_control_phrases(value, DEFAULT_STANDBY_REQUEST_PHRASES)
+
+
+def standby_request_phrases_to_env(value: object | None) -> str:
+    """Return a stable comma-separated storage value for standby phrases."""
+    return ", ".join(parse_standby_request_phrases(value))
+
+
 def language_code_for_realtime_transcription(language: str | None) -> str | None:
     """Map a user-facing language label/code to an ISO-style transcription hint."""
     if not language:
@@ -183,6 +243,13 @@ def language_code_for_realtime_transcription(language: str | None) -> str | None
 def get_realtime_languages() -> list[str]:
     """Return the runtime language preference list from config."""
     return parse_realtime_languages(getattr(config, "REALTIME_LANGUAGES", DEFAULT_REALTIME_LANGUAGES))
+
+
+def get_standby_request_phrases() -> list[str]:
+    """Return configured phrases that should close Realtime and enter standby."""
+    return parse_standby_request_phrases(
+        getattr(config, "STANDBY_REQUEST_PHRASES", DEFAULT_STANDBY_REQUEST_PHRASES)
+    )
 
 
 def get_primary_realtime_language_code() -> str | None:
@@ -282,6 +349,7 @@ class Config:
     STANDBY_POSE_PITCH_DEGREES = _env_float("HEY_ROBO_STANDBY_POSE_PITCH_DEGREES", 24.0)
     ACTIVE_POSE_DURATION_SECONDS = _env_float("HEY_ROBO_ACTIVE_POSE_DURATION_SECONDS", 0.65)
     STANDBY_POSE_DURATION_SECONDS = _env_float("HEY_ROBO_STANDBY_POSE_DURATION_SECONDS", 0.9)
+    STANDBY_REQUEST_PHRASES = parse_standby_request_phrases(os.getenv("HEY_ROBO_STANDBY_REQUEST_PHRASES"))
     REALTIME_VOICE = os.getenv("HEY_ROBO_REALTIME_VOICE", os.getenv("OPENAI_REALTIME_VOICE", "cedar"))
     REALTIME_LANGUAGES = parse_realtime_languages(os.getenv("HEY_ROBO_REALTIME_LANGUAGES"))
     CODEX_RELAY_URL = os.getenv("HEY_ROBO_CODEX_RELAY_URL", "http://127.0.0.1:8766")

@@ -2,6 +2,8 @@ from hey_robo.config import (
     config,
     parse_realtime_languages,
     realtime_languages_to_env,
+    parse_standby_request_phrases,
+    standby_request_phrases_to_env,
     language_code_for_realtime_transcription,
 )
 from hey_robo.prompts import get_session_voice, get_session_instructions
@@ -21,6 +23,14 @@ def test_realtime_languages_are_parsed_and_deduplicated() -> None:
     assert realtime_languages_to_env(languages) == "Dutch, English, Spanish"
 
 
+def test_standby_request_phrases_are_parsed_and_deduplicated() -> None:
+    """Parse user-editable phrases for local standby voice controls."""
+    phrases = parse_standby_request_phrases("go to sleep, standby; Go to sleep\nstop listening")
+
+    assert phrases == ["go to sleep", "standby", "stop listening"]
+    assert standby_request_phrases_to_env(phrases) == "go to sleep, standby, stop listening"
+
+
 def test_language_label_maps_to_transcription_code() -> None:
     """Map common labels and regional codes to transcription hints."""
     assert language_code_for_realtime_transcription("Dutch") == "nl"
@@ -32,6 +42,7 @@ def test_language_label_maps_to_transcription_code() -> None:
 def test_session_instructions_include_ordered_language_preferences(monkeypatch) -> None:
     """Inject app language settings into the Realtime session prompt."""
     monkeypatch.setattr(config, "REALTIME_LANGUAGES", ["Dutch", "English"], raising=False)
+    monkeypatch.setattr(config, "STANDBY_REQUEST_PHRASES", ["ga slapen", "standby"], raising=False)
 
     instructions = get_session_instructions()
 
@@ -39,3 +50,5 @@ def test_session_instructions_include_ordered_language_preferences(monkeypatch) 
     assert "1. Dutch, 2. English" in instructions
     assert "Start in Dutch" in instructions
     assert "## Unclear Audio" in instructions
+    assert "## Standby Commands" in instructions
+    assert '"ga slapen", "standby"' in instructions
