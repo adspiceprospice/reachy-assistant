@@ -93,6 +93,7 @@ class LocalStream:
         self._handler_task: asyncio.Task[None] | None = None
         self._pending_audio_frames: deque[tuple[int, NDArray[np.int16]]] = deque(maxlen=120)
         self._session_timeout_seconds = max(5.0, float(getattr(config, "WAKE_SESSION_TIMEOUT_SECONDS", 45.0)))
+        self._wake_rearm_at = 0.0
         if hasattr(self.handler, "deps"):
             self.handler.deps.standby_callback = self.request_standby
 
@@ -358,6 +359,19 @@ class LocalStream:
         """Return whether local wake phrase gating is enabled."""
         return bool(getattr(config, "WAKE_ENABLED", True))
 
+    def _arm_wake_rearm_delay(self, reason: str) -> None:
+        """Ignore wake detections briefly after standby transitions."""
+        delay = max(0.0, float(getattr(config, "WAKE_REARM_DELAY_SECONDS", 3.0)))
+        if delay <= 0:
+            self._wake_rearm_at = 0.0
+            return
+        try:
+            loop = asyncio.get_running_loop()
+            self._wake_rearm_at = max(self._wake_rearm_at, loop.time() + delay)
+            logger.info("Wake detector re-arming in %.1fs after %s", delay, reason)
+        except RuntimeError:
+            return
+
     def _build_wake_detector(self) -> None:
         """Initialize the configured local wake phrase detector."""
         self._wake_detector = build_wake_word_detector(
@@ -368,6 +382,7 @@ class LocalStream:
             instance_path=self._instance_path,
             sample_rate=int(getattr(config, "WAKE_SAMPLE_RATE", 16_000)),
             min_interval_seconds=float(getattr(config, "WAKE_ACTIVATION_MIN_INTERVAL_SECONDS", 2.0)),
+            min_confidence=float(getattr(config, "WAKE_MIN_CONFIDENCE", 0.60)),
         )
         self._wake_status = self._wake_detector.status
         if self._wake_status.ready:
@@ -388,6 +403,7 @@ class LocalStream:
             detection.confidence,
         )
         self._realtime_active = True
+        self._wake_rearm_at = 0.0
         self._pending_audio_frames.clear()
         self._queue_realtime_state_pose("active")
 
@@ -419,6 +435,7 @@ class LocalStream:
         self._pending_audio_frames.clear()
         if was_active and self._wake_enabled():
             self._queue_realtime_state_pose("standby")
+            self._arm_wake_rearm_delay("Realtime task exit")
 
     async def _deactivate_realtime(self, reason: str) -> None:
         """Close the active Realtime session and return to wake mode."""
@@ -431,6 +448,7 @@ class LocalStream:
         self.clear_audio_queue()
         if self._wake_enabled():
             self._queue_realtime_state_pose("standby")
+            self._arm_wake_rearm_delay(reason)
 
         task = self._handler_task
         try:
@@ -523,6 +541,7 @@ class LocalStream:
 
         class AppSettingsPayload(BaseModel):
             openai_api_key: str | None = None
+            model_name: str | None = None
             wake_enabled: bool | None = None
             wake_phrase: str | None = None
             wake_model_path: str | None = None
@@ -544,6 +563,8 @@ class LocalStream:
 
             config_map = {
                 "OPENAI_API_KEY": "OPENAI_API_KEY",
+                "MODEL_NAME": "MODEL_NAME",
+                "HEY_ROBO_REALTIME_MODEL": "MODEL_NAME",
                 "HEY_ROBO_WAKE_ENABLED": "WAKE_ENABLED",
                 "HEY_ROBO_WAKE_PHRASE": "WAKE_PHRASE",
                 "HEY_ROBO_WAKE_MODEL_PATH": "WAKE_MODEL_PATH",
@@ -600,6 +621,8 @@ class LocalStream:
             return JSONResponse(
                 {
                     "has_key": has_key,
+                    "model_name": getattr(config, "MODEL_NAME", "gpt-realtime-2"),
+                    "realtime_reasoning_effort": getattr(config, "REALTIME_REASONING_EFFORT", "low"),
                     "wake_enabled": bool(getattr(config, "WAKE_ENABLED", True)),
                     "wake_phrase": getattr(config, "WAKE_PHRASE", "HEY ROBO"),
                     "wake_engine": getattr(config, "WAKE_ENGINE", "vosk"),
@@ -692,6 +715,8 @@ class LocalStream:
             values: dict[str, str] = {}
             if payload.openai_api_key and payload.openai_api_key.strip():
                 values["OPENAI_API_KEY"] = payload.openai_api_key
+            if payload.model_name and payload.model_name.strip():
+                values["MODEL_NAME"] = payload.model_name
             if payload.wake_enabled is not None:
                 values["HEY_ROBO_WAKE_ENABLED"] = "true" if payload.wake_enabled else "false"
             if payload.wake_phrase and payload.wake_phrase.strip():
@@ -774,6 +799,12 @@ class LocalStream:
                     if new_key:
                         try:
                             config.OPENAI_API_KEY = new_key
+                        except Exception:
+                            pass
+                    model_name = os.getenv("HEY_ROBO_REALTIME_MODEL") or os.getenv("MODEL_NAME")
+                    if model_name:
+                        try:
+                            config.MODEL_NAME = model_name.strip()
                         except Exception:
                             pass
                     wake_phrase = os.getenv("HEY_ROBO_WAKE_PHRASE")
@@ -898,6 +929,7 @@ class LocalStream:
             if self._wake_enabled():
                 self._build_wake_detector()
                 self._queue_realtime_state_pose("standby")
+                self._arm_wake_rearm_delay("startup standby")
                 self.handler.idle_signals_enabled = False
                 self._tasks.append(asyncio.create_task(self._session_watch_loop(), name="wake-session-watch"))
             else:
@@ -974,6 +1006,9 @@ class LocalStream:
                 if self._realtime_active:
                     await self._send_or_buffer_active_frame(frame)
                 elif self._wake_detector and self._wake_detector.status.ready:
+                    if asyncio.get_running_loop().time() < self._wake_rearm_at:
+                        await asyncio.sleep(0.02)
+                        continue
                     detection = self._wake_detector.accept_frame(frame)
                     if detection is not None:
                         await self._activate_realtime(detection)

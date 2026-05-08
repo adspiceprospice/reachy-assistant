@@ -8,6 +8,11 @@ from dotenv import find_dotenv, load_dotenv
 
 
 DEFAULT_REALTIME_LANGUAGES = ("English",)
+DEFAULT_REALTIME_MODEL = "gpt-realtime-2"
+REALTIME_MODEL_OPTIONS = (
+    "gpt-realtime-2",
+    "gpt-realtime",
+)
 
 _LANGUAGE_CODE_ALIASES = {
     "afrikaans": "af",
@@ -259,13 +264,16 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # The key is downloaded in console.py if needed
 
     # Optional
-    MODEL_NAME = os.getenv("MODEL_NAME", "gpt-realtime")
+    MODEL_NAME = os.getenv("HEY_ROBO_REALTIME_MODEL", os.getenv("MODEL_NAME", DEFAULT_REALTIME_MODEL))
+    REALTIME_REASONING_EFFORT = os.getenv("HEY_ROBO_REALTIME_REASONING_EFFORT", "low")
     WAKE_ENABLED = _env_flag("HEY_ROBO_WAKE_ENABLED", default=True)
     WAKE_PHRASE = os.getenv("HEY_ROBO_WAKE_PHRASE", "HEY ROBO")
     WAKE_ENGINE = os.getenv("HEY_ROBO_WAKE_ENGINE", "vosk")
     WAKE_MODEL_PATH = os.getenv("HEY_ROBO_WAKE_MODEL_PATH", "")
     WAKE_SAMPLE_RATE = _env_int("HEY_ROBO_WAKE_SAMPLE_RATE", 16_000)
     WAKE_ACTIVATION_MIN_INTERVAL_SECONDS = _env_float("HEY_ROBO_WAKE_ACTIVATION_MIN_INTERVAL_SECONDS", 2.0)
+    WAKE_MIN_CONFIDENCE = _env_float("HEY_ROBO_WAKE_MIN_CONFIDENCE", 0.60)
+    WAKE_REARM_DELAY_SECONDS = _env_float("HEY_ROBO_WAKE_REARM_DELAY_SECONDS", 3.0)
     WAKE_SESSION_TIMEOUT_SECONDS = _env_float("HEY_ROBO_WAKE_SESSION_TIMEOUT_SECONDS", 45.0)
     STATE_POSES_ENABLED = _env_flag("HEY_ROBO_STATE_POSES_ENABLED", default=True)
     STANDBY_POSE_MODE = os.getenv("HEY_ROBO_STANDBY_POSE_MODE", "sleep_off")

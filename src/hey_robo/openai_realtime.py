@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 from scipy.signal import resample
 from websockets.exceptions import ConnectionClosedError
 
-from hey_robo.config import config, get_primary_realtime_language_code
+from hey_robo.config import config, get_realtime_languages, get_primary_realtime_language_code
 from hey_robo.prompts import get_session_voice, get_session_instructions
 from hey_robo.tools.core_tools import (
     ToolDependencies,
@@ -129,6 +129,51 @@ def _build_transcription_config() -> dict[str, str]:
     if primary_language:
         transcription["language"] = primary_language
     return transcription
+
+
+def _is_realtime_2_model(model_name: str | None) -> bool:
+    """Return whether the configured Realtime model supports reasoning controls."""
+    return bool(model_name and model_name.strip().startswith("gpt-realtime-2"))
+
+
+def _build_session_update_payload(
+    *,
+    input_sample_rate: int,
+    output_sample_rate: int,
+) -> dict[str, Any]:
+    """Build the Realtime session.update payload from runtime configuration."""
+    session: dict[str, Any] = {
+        "type": "realtime",
+        "instructions": get_session_instructions(),
+        "audio": {
+            "input": {
+                "format": {
+                    "type": "audio/pcm",
+                    "rate": input_sample_rate,
+                },
+                "transcription": _build_transcription_config(),
+                "turn_detection": {
+                    "type": "server_vad",
+                    "interrupt_response": True,
+                },
+            },
+            "output": {
+                "format": {
+                    "type": "audio/pcm",
+                    "rate": output_sample_rate,
+                },
+                "voice": get_session_voice(),
+            },
+        },
+        "tools": get_tool_specs(),  # type: ignore[typeddict-item]
+        "tool_choice": "auto",
+    }
+
+    if _is_realtime_2_model(str(getattr(config, "MODEL_NAME", ""))):
+        session["reasoning"] = {
+            "effort": str(getattr(config, "REALTIME_REASONING_EFFORT", "low") or "low").strip() or "low",
+        }
+    return session
 
 
 def _normalize_control_text(text: str) -> str:
@@ -540,39 +585,19 @@ class OpenaiRealtimeHandler(AsyncStreamHandler):
         """Establish and manage a single realtime session."""
         async with self.client.realtime.connect(model=config.MODEL_NAME) as conn:
             try:
-                await conn.session.update(
-                    session={
-                        "type": "realtime",
-                        "instructions": get_session_instructions(),
-                        "audio": {
-                            "input": {
-                                "format": {
-                                    "type": "audio/pcm",
-                                    "rate": self.input_sample_rate,
-                                },
-                                "transcription": _build_transcription_config(),
-                                "turn_detection": {
-                                    "type": "server_vad",
-                                    "interrupt_response": True,
-                                },
-                            },
-                            "output": {
-                                "format": {
-                                    "type": "audio/pcm",
-                                    "rate": self.output_sample_rate,
-                                },
-                                "voice": get_session_voice(),
-                            },
-                        },
-                        "tools": get_tool_specs(),  # type: ignore[typeddict-item]
-                        "tool_choice": "auto",
-                    },
+                session_payload = _build_session_update_payload(
+                    input_sample_rate=self.input_sample_rate,
+                    output_sample_rate=self.output_sample_rate,
                 )
+                await conn.session.update(session=session_payload)
                 logger.info(
-                    "Realtime session initialized with profile=%r voice=%r transcription=%s",
+                    "Realtime session initialized with model=%r profile=%r voice=%r languages=%s transcription=%s reasoning=%s",
+                    getattr(config, "MODEL_NAME", None),
                     getattr(config, "REACHY_MINI_CUSTOM_PROFILE", None),
                     get_session_voice(),
+                    get_realtime_languages(),
                     _build_transcription_config(),
+                    session_payload.get("reasoning"),
                 )
                 # If we reached here, the session update succeeded which implies the API key worked.
                 # Persist the key to a newly created .env (copied from .env.example) if needed.

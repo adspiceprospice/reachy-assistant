@@ -35,6 +35,7 @@ def test_session_instructions_include_ordered_language_preferences(monkeypatch) 
 
     instructions = get_session_instructions()
 
-    assert "Runtime language preference:" in instructions
+    assert "## Language" in instructions
     assert "1. Dutch, 2. English" in instructions
-    assert "Treat Dutch as the default" in instructions
+    assert "Start in Dutch" in instructions
+    assert "## Unclear Audio" in instructions

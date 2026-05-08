@@ -26,11 +26,14 @@ def _format_language_preferences() -> str:
         )
 
     return (
-        "Runtime language preference:\n"
-        f"- The user is most likely to address you in these languages, ordered by likelihood: {language_line}.\n"
-        f"- Treat {primary} as the default immediately after the wake phrase when speech is ambiguous.\n"
-        "- Detect the user's actual language from their speech and respond in that same language unless they ask otherwise.\n"
-        "- Do not switch to an unrelated language."
+        "## Language\n"
+        f"- Expected user languages, ordered by likelihood: {language_line}.\n"
+        f"- Start in {primary}. Treat {primary} as the default language when the first user audio after the wake phrase is ambiguous, silent, or noisy.\n"
+        "- Speak only the expected languages above unless the user clearly asks for another language by name.\n"
+        "- Do not switch to Chinese, Spanish, or any other unrelated language from background noise, short sounds, or uncertain transcription.\n"
+        "- Once the user clearly speaks one of the expected languages, respond in that same language unless they ask otherwise.\n\n"
+        "## Unclear Audio\n"
+        f"- If recognition appears unrelated to the expected languages, ask briefly in {primary} for the user to repeat."
     )
 
 

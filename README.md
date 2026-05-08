@@ -32,10 +32,14 @@ Configure a local Vosk model directory in app settings or with:
 
 ```bash
 HEY_ROBO_WAKE_MODEL_PATH=/path/to/vosk-model-small-en-us-0.15
+HEY_ROBO_WAKE_MIN_CONFIDENCE=0.60
+HEY_ROBO_WAKE_REARM_DELAY_SECONDS=3
 ```
 
 If no model is configured, the app does not open Realtime automatically. The
 settings page reports the missing model path so it can be fixed before testing.
+Wake detection only activates on final Vosk recognizer results, not partial
+transcripts, which reduces false wake-ups from background noise.
 
 For local development without wake gating:
 
@@ -72,6 +76,19 @@ HEY_ROBO_STANDBY_POSE_PITCH_DEGREES=24
 `HEY_ROBO_STANDBY_POSE_MODE=pose` restores the older held down-pitch cue. Keep
 the default `sleep_off` mode for normal wake-word standby.
 
+## Realtime Model
+
+HeyRobo now defaults to `gpt-realtime-2`, OpenAI's newer Realtime voice model.
+The app settings page includes a model selector so you can switch back to
+`gpt-realtime` if needed.
+
+```bash
+MODEL_NAME=gpt-realtime-2
+HEY_ROBO_REALTIME_REASONING_EFFORT=low
+```
+
+`HEY_ROBO_REALTIME_REASONING_EFFORT` is only sent for `gpt-realtime-2`.
+
 ## Language Preferences
 
 Set one or more Realtime languages in the app settings, ordered by likelihood.
@@ -81,8 +98,10 @@ For example:
 HEY_ROBO_REALTIME_LANGUAGES=Dutch, English
 ```
 
-The first language is used as the strongest startup hint after the wake phrase,
-and the full ordered list is included in the Realtime session instructions.
+The first language is used as the startup default after the wake phrase, and the
+full ordered list is included in the Realtime session instructions. If speech is
+ambiguous or noisy, the assistant is instructed to ask for a repeat in the
+primary language rather than guessing an unrelated language.
 
 ## Codex Relay
 
