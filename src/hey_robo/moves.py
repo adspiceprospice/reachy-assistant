@@ -130,6 +130,51 @@ class BreathingMove(Move):  # type: ignore
         return (head_pose, antennas, 0.0)
 
 
+class IndicatorPoseMove(Move):  # type: ignore
+    """Move smoothly to a state-indicator pose and optionally hold it."""
+
+    def __init__(
+        self,
+        *,
+        target_head_pose: NDArray[np.float32],
+        start_head_pose: NDArray[np.float32],
+        target_antennas: Tuple[float, float] = (0.0, 0.0),
+        start_antennas: Tuple[float, float] = (0.0, 0.0),
+        target_body_yaw: float = 0.0,
+        start_body_yaw: float = 0.0,
+        transition_duration: float = 0.8,
+        hold: bool = False,
+    ):
+        """Initialize the indicator pose move."""
+        self.target_head_pose = target_head_pose
+        self.start_head_pose = start_head_pose
+        self.target_antennas = target_antennas
+        self.start_antennas = start_antennas
+        self.target_body_yaw = target_body_yaw
+        self.start_body_yaw = start_body_yaw
+        self.transition_duration = max(0.01, float(transition_duration))
+        self.hold = hold
+
+    @property
+    def duration(self) -> float:
+        """Duration property required by official Move interface."""
+        return float("inf") if self.hold else self.transition_duration
+
+    def evaluate(self, t: float) -> tuple[NDArray[np.float64] | None, NDArray[np.float64] | None, float | None]:
+        """Evaluate the indicator pose transition."""
+        interpolation_t = min(1.0, max(0.0, t / self.transition_duration))
+        head_pose = linear_pose_interpolation(self.start_head_pose, self.target_head_pose, interpolation_t)
+        antennas = np.array(
+            [
+                self.start_antennas[0] + (self.target_antennas[0] - self.start_antennas[0]) * interpolation_t,
+                self.start_antennas[1] + (self.target_antennas[1] - self.start_antennas[1]) * interpolation_t,
+            ],
+            dtype=np.float64,
+        )
+        body_yaw = self.start_body_yaw + (self.target_body_yaw - self.start_body_yaw) * interpolation_t
+        return (head_pose, antennas, body_yaw)
+
+
 def combine_full_body(primary_pose: FullBodyPose, secondary_pose: FullBodyPose) -> FullBodyPose:
     """Combine primary and secondary full body poses.
 
@@ -276,6 +321,7 @@ class MovementManager:
         self._antenna_blend_duration = 0.4  # seconds to blend back after listening
         self._last_listening_blend_time = self._now()
         self._breathing_active = False  # true when breathing move is running or queued
+        self._output_suspended = False
         self._listening_debounce_s = 0.15
         self._last_listening_toggle_time = self._now()
         self._last_set_target_err = 0.0
@@ -345,6 +391,14 @@ class MovementManager:
         aware of manual motions. Thread-safe via the command queue.
         """
         self._command_queue.put(("set_moving_state", duration))
+
+    def set_output_suspended(self, suspended: bool) -> None:
+        """Pause or resume direct set_target output from the control loop.
+
+        This lets SDK-owned blocking motions such as Reachy Mini's sleep pose run
+        without being overwritten by the 100 Hz pose-fusion loop.
+        """
+        self._command_queue.put(("set_output_suspended", bool(suspended)))
 
     def is_idle(self) -> bool:
         """Return True when the robot has been inactive longer than the idle delay."""
@@ -439,6 +493,19 @@ class MovementManager:
                 logger.warning("Invalid moving state duration: %s", payload)
                 return
             self.state.update_activity()
+        elif command == "set_output_suspended":
+            self._output_suspended = bool(payload)
+            if self._output_suspended:
+                self.move_queue.clear()
+                self.state.current_move = None
+                self.state.move_start_time = None
+                self._breathing_active = False
+                self.state.speech_offsets = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                self.state.face_tracking_offsets = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                logger.info("Suspended movement manager output")
+            else:
+                self.state.update_activity()
+                logger.info("Resumed movement manager output")
         elif command == "mark_activity":
             self.state.update_activity()
         elif command == "set_listening":
@@ -593,6 +660,8 @@ class MovementManager:
 
     def _update_primary_motion(self, current_time: float) -> None:
         """Advance queue state and idle behaviours for this tick."""
+        if self._output_suspended:
+            return
         self._manage_move_queue(current_time)
         self._manage_breathing(current_time)
 
@@ -783,6 +852,7 @@ class MovementManager:
             "queue_size": len(self.move_queue),
             "is_listening": self._is_listening,
             "breathing_active": self._breathing_active,
+            "output_suspended": self._output_suspended,
             "last_commanded_pose": {
                 "head": head_matrix,
                 "antennas": antennas,
@@ -823,17 +893,18 @@ class MovementManager:
             # 2) Manage the primary move queue (start new move, end finished move, breathing)
             self._update_primary_motion(loop_start)
 
-            # 3) Update vision-based secondary offsets
-            self._update_face_tracking(loop_start)
+            if not self._output_suspended:
+                # 3) Update vision-based secondary offsets
+                self._update_face_tracking(loop_start)
 
-            # 4) Build primary and secondary full-body poses, then fuse them
-            head, antennas, body_yaw = self._compose_full_body_pose(loop_start)
+                # 4) Build primary and secondary full-body poses, then fuse them
+                head, antennas, body_yaw = self._compose_full_body_pose(loop_start)
 
-            # 5) Apply listening antenna freeze or blend-back
-            antennas_cmd = self._calculate_blended_antennas(antennas)
+                # 5) Apply listening antenna freeze or blend-back
+                antennas_cmd = self._calculate_blended_antennas(antennas)
 
-            # 6) Single set_target call - the only control point
-            self._issue_control_command(head, antennas_cmd, body_yaw)
+                # 6) Single set_target call - the only control point
+                self._issue_control_command(head, antennas_cmd, body_yaw)
 
             # 7) Adaptive sleep to align to next tick, then publish shared state
             sleep_time, freq_stats = self._schedule_next_tick(loop_start, freq_stats)
