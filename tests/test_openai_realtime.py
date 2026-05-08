@@ -14,6 +14,7 @@ from hey_robo.openai_realtime import (
     _compute_response_cost,
     _build_transcription_config,
     _looks_like_standby_request,
+    _build_session_update_payload,
 )
 from hey_robo.tools.core_tools import ToolDependencies
 from hey_robo.tools.tool_constants import ToolState
@@ -55,6 +56,31 @@ def test_transcription_config_omits_unknown_language_hint(monkeypatch: Any) -> N
     monkeypatch.setattr(rt_mod.config, "REALTIME_LANGUAGES", ["Klingon", "English"], raising=False)
 
     assert _build_transcription_config() == {"model": "gpt-4o-transcribe"}
+
+
+def test_realtime_2_session_payload_includes_low_reasoning(monkeypatch: Any) -> None:
+    """Realtime 2 should get explicit low reasoning by default."""
+    monkeypatch.setattr(rt_mod.config, "MODEL_NAME", "gpt-realtime-2", raising=False)
+    monkeypatch.setattr(rt_mod.config, "REALTIME_REASONING_EFFORT", "low", raising=False)
+    monkeypatch.setattr(rt_mod, "get_session_instructions", lambda: "test instructions")
+    monkeypatch.setattr(rt_mod, "get_session_voice", lambda: "cedar")
+    monkeypatch.setattr(rt_mod, "get_tool_specs", lambda: [])
+
+    payload = _build_session_update_payload(input_sample_rate=24_000, output_sample_rate=24_000)
+
+    assert payload["reasoning"] == {"effort": "low"}
+
+
+def test_legacy_realtime_payload_omits_reasoning(monkeypatch: Any) -> None:
+    """The older realtime model should not receive Realtime 2-only fields."""
+    monkeypatch.setattr(rt_mod.config, "MODEL_NAME", "gpt-realtime", raising=False)
+    monkeypatch.setattr(rt_mod, "get_session_instructions", lambda: "test instructions")
+    monkeypatch.setattr(rt_mod, "get_session_voice", lambda: "cedar")
+    monkeypatch.setattr(rt_mod, "get_tool_specs", lambda: [])
+
+    payload = _build_session_update_payload(input_sample_rate=24_000, output_sample_rate=24_000)
+
+    assert "reasoning" not in payload
 
 
 def test_standby_request_detection_handles_common_sleep_commands() -> None:

@@ -99,6 +99,13 @@
 
           <div class="split">
             <div class="field-group">
+              <label for="model-name">Realtime model</label>
+              <select id="model-name">
+                <option value="gpt-realtime-2">gpt-realtime-2</option>
+                <option value="gpt-realtime">gpt-realtime</option>
+              </select>
+            </div>
+            <div class="field-group">
               <label for="voice">Realtime voice</label>
               <select id="voice">
                 <option value="cedar">cedar</option>
@@ -110,21 +117,23 @@
                 <option value="verse">verse</option>
               </select>
             </div>
+          </div>
+
+          <div class="field-group">
+            <label for="languages">Realtime languages</label>
+            <input id="languages" type="text" placeholder="English, Dutch" autocomplete="off" />
+            <p class="status">First language is used as the startup default when speech is ambiguous.</p>
+          </div>
+
+          <div class="split">
             <div class="field-group">
-              <label for="languages">Realtime languages</label>
-              <input id="languages" type="text" placeholder="English, Dutch" autocomplete="off" />
-              <p class="status">First language is preferred when speech is ambiguous.</p>
+              <label for="workspace-id">Default workspace ID</label>
+              <input id="workspace-id" type="text" autocomplete="off" />
             </div>
-          </div>
-
-          <div class="field-group">
-            <label for="workspace-id">Default workspace ID</label>
-            <input id="workspace-id" type="text" autocomplete="off" />
-          </div>
-
-          <div class="field-group">
-            <label for="relay-url">Codex relay URL</label>
-            <input id="relay-url" type="text" autocomplete="off" />
+            <div class="field-group">
+              <label for="relay-url">Codex relay URL</label>
+              <input id="relay-url" type="text" autocomplete="off" />
+            </div>
           </div>
 
           <div class="field-group">

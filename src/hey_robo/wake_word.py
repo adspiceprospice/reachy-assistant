@@ -124,6 +124,7 @@ class VoskWakeWordDetector:
         model_path: Path,
         sample_rate: int = 16_000,
         min_interval_seconds: float = 2.0,
+        min_confidence: float = 0.60,
         vosk_module: Any | None = None,
     ) -> None:
         """Create a detector for a wake phrase and Vosk model directory."""
@@ -145,6 +146,7 @@ class VoskWakeWordDetector:
         self.model_path = model_path
         self.sample_rate = sample_rate
         self.min_interval_seconds = max(0.0, min_interval_seconds)
+        self.min_confidence = max(0.0, min_confidence)
         self._vosk = vosk_module
         self._model = self._vosk.Model(str(model_path))
         self._recognizer = self._create_recognizer()
@@ -166,7 +168,7 @@ class VoskWakeWordDetector:
         grammar = json.dumps([self.wake_phrase, "[unk]"])
         recognizer = self._vosk.KaldiRecognizer(self._model, self.sample_rate, grammar)
         try:
-            recognizer.SetWords(False)
+            recognizer.SetWords(True)
         except Exception:
             pass
         return recognizer
@@ -203,6 +205,14 @@ class VoskWakeWordDetector:
         if not transcript:
             return None
         logger.debug("Wake detector transcript=%r confidence=%s", transcript, confidence)
+        if confidence is not None and confidence < self.min_confidence:
+            logger.debug(
+                "Wake detector ignored low-confidence match: transcript=%r confidence=%.3f threshold=%.3f",
+                transcript,
+                confidence,
+                self.min_confidence,
+            )
+            return None
         if phrase_matches(transcript, self.wake_phrase):
             self._mark_detected()
             return WakeDetection(
@@ -224,7 +234,7 @@ class VoskWakeWordDetector:
 
         if self._recognizer.AcceptWaveform(audio_bytes):
             return self._process_result(self._recognizer.Result())
-        return self._process_result(self._recognizer.PartialResult())
+        return None
 
 
 def _frame_to_pcm16_bytes(
@@ -294,6 +304,7 @@ def build_wake_word_detector(
     instance_path: str | None,
     sample_rate: int,
     min_interval_seconds: float,
+    min_confidence: float = 0.60,
 ) -> WakeWordDetector:
     """Build the configured wake word detector or a diagnostic placeholder."""
     normalized_engine = (engine or "vosk").strip().lower()
@@ -327,6 +338,7 @@ def build_wake_word_detector(
             model_path=resolved_path,
             sample_rate=sample_rate,
             min_interval_seconds=min_interval_seconds,
+            min_confidence=min_confidence,
         )
     except Exception as exc:
         return UnavailableWakeWordDetector(
