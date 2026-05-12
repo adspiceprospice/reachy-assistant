@@ -24,7 +24,12 @@ from hey_robo.config import (
     get_standby_request_phrases,
     get_primary_realtime_language_code,
 )
-from hey_robo.prompts import get_session_voice, get_session_instructions
+from hey_robo.prompts import (
+    get_session_voice,
+    get_session_instructions,
+    get_language_startup_message,
+    get_transcription_language_prompt,
+)
 from hey_robo.tools.core_tools import (
     ToolDependencies,
     get_tool_specs,
@@ -106,11 +111,28 @@ def _response_usage_tokens(usage: Any) -> dict[str, int]:
 
 def _build_transcription_config() -> dict[str, str]:
     """Build Realtime transcription settings from the ordered language preference."""
-    transcription = {"model": "gpt-4o-transcribe"}
+    transcription = {
+        "model": "gpt-4o-transcribe",
+        "prompt": get_transcription_language_prompt(),
+    }
     primary_language = get_primary_realtime_language_code()
     if primary_language:
         transcription["language"] = primary_language
     return transcription
+
+
+def _build_language_startup_item() -> dict[str, Any]:
+    """Build a system item that pins startup language before microphone audio."""
+    return {
+        "type": "message",
+        "role": "system",
+        "content": [
+            {
+                "type": "input_text",
+                "text": get_language_startup_message(),
+            }
+        ],
+    }
 
 
 def _is_realtime_2_model(model_name: str | None) -> bool:
@@ -576,6 +598,7 @@ class OpenaiRealtimeHandler(AsyncStreamHandler):
                     output_sample_rate=self.output_sample_rate,
                 )
                 await conn.session.update(session=session_payload)
+                await conn.conversation.item.create(item=_build_language_startup_item())
                 logger.info(
                     "Realtime session initialized with model=%r profile=%r voice=%r languages=%s transcription=%s reasoning=%s",
                     getattr(config, "MODEL_NAME", None),
