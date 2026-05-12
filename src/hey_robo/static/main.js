@@ -293,6 +293,24 @@ function wireLogControls() {
   });
 }
 
+function wireShellControls() {
+  const openBtn = byId("open-full-page-btn");
+  if (!openBtn) return;
+  openBtn.addEventListener("click", async () => {
+    const opened = window.open(window.location.href, "_blank");
+    if (opened) {
+      opened.opener = null;
+      return;
+    }
+    try {
+      if (document.fullscreenElement) return;
+      await document.documentElement.requestFullscreen();
+    } catch (e) {
+      setTone(byId("connection-state"), "warn", "Open blocked");
+    }
+  });
+}
+
 function collectSettings() {
   const key = byId("api-key").value.trim();
   return {
@@ -376,6 +394,7 @@ async function init() {
   show(byId("form-panel"), false);
 
   wireLogControls();
+  wireShellControls();
   wireSettings();
   await loadRecentLogs();
   connectLiveLogs();

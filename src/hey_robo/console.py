@@ -389,7 +389,7 @@ class LocalStream:
             instance_path=self._instance_path,
             sample_rate=int(getattr(config, "WAKE_SAMPLE_RATE", 16_000)),
             min_interval_seconds=float(getattr(config, "WAKE_ACTIVATION_MIN_INTERVAL_SECONDS", 2.0)),
-            min_confidence=float(getattr(config, "WAKE_MIN_CONFIDENCE", 0.60)),
+            min_confidence=float(getattr(config, "WAKE_MIN_CONFIDENCE", 0.70)),
         )
         self._wake_status = self._wake_detector.status
         if self._wake_status.ready:
