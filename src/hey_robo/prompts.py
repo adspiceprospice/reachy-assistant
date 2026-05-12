@@ -33,12 +33,38 @@ def _format_language_preferences() -> str:
     return (
         "## Language\n"
         f"- Expected user languages, ordered by likelihood: {language_line}.\n"
-        f"- Start in {primary}. Treat {primary} as the default language when the first user audio after the wake phrase is ambiguous, silent, or noisy.\n"
+        f"- Start in {primary}. Prefer {primary} for the first response and when the first user audio after the wake phrase is ambiguous, silent, or noisy.\n"
         "- Speak only the expected languages above unless the user clearly asks for another language by name.\n"
-        "- Do not switch to Chinese, Spanish, or any other unrelated language from background noise, short sounds, or uncertain transcription.\n"
+        "- Do not switch to unconfigured languages from background noise, short sounds, wake-word-only audio, or uncertain transcription.\n"
         "- Once the user clearly speaks one of the expected languages, respond in that same language unless they ask otherwise.\n\n"
         "## Unclear Audio\n"
         f"- If recognition appears unrelated to the expected languages, ask briefly in {primary} for the user to repeat."
+    )
+
+
+def get_transcription_language_prompt() -> str:
+    """Build a language hint for Realtime input audio transcription."""
+    languages = get_realtime_languages()
+    primary = languages[0]
+    language_line = ", ".join(languages)
+    return (
+        f"Expected spoken languages, ordered by likelihood: {language_line}. "
+        f"Prefer {primary} when audio is short, ambiguous, noisy, or contains only the wake phrase. "
+        "Do not transcribe background noise or uncertain audio as unconfigured languages."
+    )
+
+
+def get_language_startup_message() -> str:
+    """Build a system message that pins language behavior before first audio."""
+    languages = get_realtime_languages()
+    primary = languages[0]
+    language_line = ", ".join(languages)
+    return (
+        "Language startup lock:\n"
+        f"- Expected user languages, ordered by likelihood: {language_line}.\n"
+        f"- Prefer {primary} for the first assistant response and for ambiguous, silent, noisy, or wake-word-only audio.\n"
+        "- Do not start in or switch to any unconfigured language unless the user clearly asks for it by name.\n"
+        f"- If the first user audio is unclear or appears unrelated to these languages, ask briefly in {primary} for the user to repeat."
     )
 
 

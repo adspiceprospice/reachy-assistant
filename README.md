@@ -118,6 +118,8 @@ The first language is used as the startup default after the wake phrase, and the
 full ordered list is included in the Realtime session instructions. If speech is
 ambiguous or noisy, the assistant is instructed to ask for a repeat in the
 primary language rather than guessing an unrelated language.
+The same language order is also sent as a transcription prompt and as a startup
+system message before microphone audio is released to the Realtime session.
 
 ## Codex Relay
 

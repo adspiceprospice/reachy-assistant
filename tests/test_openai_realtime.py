@@ -14,6 +14,7 @@ from hey_robo.openai_realtime import (
     _compute_response_cost,
     _build_transcription_config,
     _looks_like_standby_request,
+    _build_language_startup_item,
     _build_session_update_payload,
 )
 from hey_robo.tools.core_tools import ToolDependencies
@@ -48,14 +49,37 @@ def test_transcription_config_uses_primary_language_hint(monkeypatch: Any) -> No
     """Realtime transcription should use the first configured language when known."""
     monkeypatch.setattr(rt_mod.config, "REALTIME_LANGUAGES", ["Dutch", "English"], raising=False)
 
-    assert _build_transcription_config() == {"model": "gpt-4o-transcribe", "language": "nl"}
+    transcription = _build_transcription_config()
+
+    assert transcription["model"] == "gpt-4o-transcribe"
+    assert transcription["language"] == "nl"
+    assert "Dutch, English" in transcription["prompt"]
+    assert "Prefer Dutch" in transcription["prompt"]
+    assert "unconfigured languages" in transcription["prompt"]
 
 
 def test_transcription_config_omits_unknown_language_hint(monkeypatch: Any) -> None:
     """Unknown free-form language labels should not send a bad transcription hint."""
     monkeypatch.setattr(rt_mod.config, "REALTIME_LANGUAGES", ["Klingon", "English"], raising=False)
 
-    assert _build_transcription_config() == {"model": "gpt-4o-transcribe"}
+    transcription = _build_transcription_config()
+
+    assert transcription["model"] == "gpt-4o-transcribe"
+    assert "language" not in transcription
+    assert "Klingon, English" in transcription["prompt"]
+
+
+def test_language_startup_item_uses_system_message(monkeypatch: Any) -> None:
+    """Realtime sessions should receive an explicit language system item before audio."""
+    monkeypatch.setattr(rt_mod.config, "REALTIME_LANGUAGES", ["Dutch", "English"], raising=False)
+
+    item = _build_language_startup_item()
+
+    assert item["type"] == "message"
+    assert item["role"] == "system"
+    assert item["content"][0]["type"] == "input_text"
+    assert "Language startup lock" in item["content"][0]["text"]
+    assert "Prefer Dutch" in item["content"][0]["text"]
 
 
 def test_realtime_2_session_payload_includes_low_reasoning(monkeypatch: Any) -> None:
@@ -81,6 +105,76 @@ def test_legacy_realtime_payload_omits_reasoning(monkeypatch: Any) -> None:
     payload = _build_session_update_payload(input_sample_rate=24_000, output_sample_rate=24_000)
 
     assert "reasoning" not in payload
+
+
+@pytest.mark.asyncio
+async def test_realtime_session_primes_language_context_before_connection_is_exposed(monkeypatch: Any) -> None:
+    """Session startup should add the language system item before active audio can flush."""
+    calls: list[tuple[str, dict[str, Any]]] = []
+    exposed_during_update: list[bool] = []
+    exposed_during_prime: list[bool] = []
+
+    monkeypatch.setattr(rt_mod.config, "REALTIME_LANGUAGES", ["Dutch", "English"], raising=False)
+    monkeypatch.setattr(rt_mod.config, "MODEL_NAME", "gpt-realtime-2", raising=False)
+    monkeypatch.setattr(rt_mod, "get_session_instructions", lambda: "test instructions")
+    monkeypatch.setattr(rt_mod, "get_session_voice", lambda: "cedar")
+    monkeypatch.setattr(rt_mod, "get_tool_specs", lambda: [])
+
+    handler_ref: list[OpenaiRealtimeHandler] = []
+
+    class FakeSession:
+        async def update(self, **kwargs: Any) -> None:
+            exposed_during_update.append(handler_ref[0].connection is not None)
+            calls.append(("session.update", kwargs))
+
+    class FakeItem:
+        async def create(self, **kwargs: Any) -> None:
+            exposed_during_prime.append(handler_ref[0].connection is not None)
+            calls.append(("conversation.item.create", kwargs))
+
+    class FakeConversation:
+        item = FakeItem()
+
+    class FakeResponse:
+        async def create(self, **_kwargs: Any) -> None:
+            return None
+
+        async def cancel(self, **_kwargs: Any) -> None:
+            return None
+
+    class FakeConn:
+        session = FakeSession()
+        conversation = FakeConversation()
+        response = FakeResponse()
+
+        async def __aenter__(self) -> "FakeConn":
+            return self
+
+        async def __aexit__(self, *_args: Any) -> bool:
+            return False
+
+        def __aiter__(self) -> "FakeConn":
+            return self
+
+        async def __anext__(self) -> None:
+            raise StopAsyncIteration
+
+    class FakeRealtime:
+        def connect(self, **_kwargs: Any) -> FakeConn:
+            return FakeConn()
+
+    deps = ToolDependencies(reachy_mini=MagicMock(), movement_manager=MagicMock())
+    handler = OpenaiRealtimeHandler(deps)
+    handler_ref.append(handler)
+    handler.client = MagicMock(realtime=FakeRealtime())
+
+    await handler._run_realtime_session()
+
+    assert [name for name, _kwargs in calls[:2]] == ["session.update", "conversation.item.create"]
+    assert exposed_during_update == [False]
+    assert exposed_during_prime == [False]
+    assert calls[1][1]["item"]["role"] == "system"
+    assert "Prefer Dutch" in calls[1][1]["item"]["content"][0]["text"]
 
 
 def test_standby_request_detection_handles_common_sleep_commands() -> None:
