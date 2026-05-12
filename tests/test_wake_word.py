@@ -1,5 +1,6 @@
 """Tests for local wake phrase detection helpers."""
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -135,3 +136,39 @@ def test_vosk_detector_requires_minimum_confidence(tmp_path: Path) -> None:
     )
 
     assert detector.accept_frame((16_000, np.zeros(160, dtype=np.int16))) is None
+
+
+def test_vosk_detector_default_minimum_confidence_is_conservative(tmp_path: Path) -> None:
+    """Default wake confidence should favor fewer false wake-ups."""
+    detector = VoskWakeWordDetector(
+        wake_phrase="HEY ROBO",
+        model_path=tmp_path,
+        sample_rate=16_000,
+        vosk_module=_FakeVosk,
+    )
+
+    assert detector.min_confidence == 0.70
+
+
+def test_vosk_detector_logs_ignored_wake_candidate_confidence(tmp_path: Path, caplog) -> None:
+    """Ignored wake candidates should expose confidence in the settings log stream."""
+
+    class LowConfidenceRecognizer(_FakeRecognizer):
+        result_json = '{"text":"hey robo","result":[{"conf":0.65},{"conf":0.66}]}'
+
+    class LowConfidenceVosk(_FakeVosk):
+        recognizer_cls = LowConfidenceRecognizer
+
+    caplog.set_level(logging.INFO, logger="hey_robo.wake_word")
+    detector = VoskWakeWordDetector(
+        wake_phrase="HEY ROBO",
+        model_path=tmp_path,
+        sample_rate=16_000,
+        min_confidence=0.70,
+        vosk_module=LowConfidenceVosk,
+    )
+
+    assert detector.accept_frame((16_000, np.zeros(160, dtype=np.int16))) is None
+    assert "Wake phrase candidate ignored" in caplog.text
+    assert "confidence=0.655" in caplog.text
+    assert "threshold=0.700" in caplog.text

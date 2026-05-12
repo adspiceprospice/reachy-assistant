@@ -101,6 +101,13 @@ select {
   margin-bottom: 18px;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .brand-lockup {
   display: flex;
   align-items: center;
@@ -390,6 +397,12 @@ button.secondary {
   font-weight: 600;
 }
 
+button.compact {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
 .status {
   margin: 0;
   color: var(--muted);
@@ -510,6 +523,7 @@ button.secondary {
   }
 
   .topbar,
+  .topbar-actions,
   .notice,
   .actions {
     align-items: stretch;

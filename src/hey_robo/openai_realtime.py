@@ -18,7 +18,12 @@ from numpy.typing import NDArray
 from scipy.signal import resample
 from websockets.exceptions import ConnectionClosedError
 
-from hey_robo.config import config, get_realtime_languages, get_primary_realtime_language_code
+from hey_robo.config import (
+    config,
+    get_realtime_languages,
+    get_standby_request_phrases,
+    get_primary_realtime_language_code,
+)
 from hey_robo.prompts import get_session_voice, get_session_instructions
 from hey_robo.tools.core_tools import (
     ToolDependencies,
@@ -44,29 +49,6 @@ TEXT_OUTPUT_COST_PER_1M = 16.0
 IMAGE_INPUT_COST_PER_1M = 5.0
 
 _RESPONSE_DONE_TIMEOUT: Final[float] = 30.0
-_STANDBY_REQUEST_PHRASES: Final[tuple[str, ...]] = (
-    "go to sleep",
-    "go sleep",
-    "sleep now",
-    "please sleep",
-    "standby",
-    "stand by",
-    "go to standby",
-    "back to standby",
-    "return to standby",
-    "go quiet",
-    "be quiet",
-    "stop listening",
-    "stop the conversation",
-    "end the conversation",
-    "wait for the wake phrase",
-    "listen for hey robo",
-    "ga slapen",
-    "ga naar standby",
-    "terug naar standby",
-    "stop met luisteren",
-    "wacht op hey robo",
-)
 _STANDBY_NEGATION_PHRASES: Final[tuple[str, ...]] = (
     "do not sleep",
     "don't sleep",
@@ -191,7 +173,11 @@ def _looks_like_standby_request(transcript: str | None) -> bool:
         return False
     if any(phrase in normalized for phrase in _STANDBY_NEGATION_PHRASES):
         return False
-    return any(phrase in normalized for phrase in _STANDBY_REQUEST_PHRASES)
+    standby_phrases = (
+        _normalize_control_text(phrase)
+        for phrase in get_standby_request_phrases()
+    )
+    return any(phrase and phrase in normalized for phrase in standby_phrases)
 
 
 class OpenaiRealtimeHandler(AsyncStreamHandler):

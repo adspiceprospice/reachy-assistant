@@ -32,7 +32,7 @@ Configure a local Vosk model directory in app settings or with:
 
 ```bash
 HEY_ROBO_WAKE_MODEL_PATH=/path/to/vosk-model-small-en-us-0.15
-HEY_ROBO_WAKE_MIN_CONFIDENCE=0.60
+HEY_ROBO_WAKE_MIN_CONFIDENCE=0.70
 HEY_ROBO_WAKE_REARM_DELAY_SECONDS=3
 ```
 
@@ -40,6 +40,8 @@ If no model is configured, the app does not open Realtime automatically. The
 settings page reports the missing model path so it can be fixed before testing.
 Wake detection only activates on final Vosk recognizer results, not partial
 transcripts, which reduces false wake-ups from background noise.
+Accepted and ignored wake candidates are written to the live settings log with
+their Vosk confidence and the active threshold.
 
 For local development without wake gating:
 
@@ -49,6 +51,20 @@ HEY_ROBO_WAKE_ENABLED=false
 
 During a live conversation, say something like "go to sleep" or "standby" to
 close the active Realtime session and return to local wake-phrase listening.
+
+## Sleep Phrases
+
+The settings page includes a Sleep phrases field. Use it to define the words
+that should close the active Realtime session and return HeyRobo to local
+wake-word standby.
+
+```bash
+HEY_ROBO_STANDBY_REQUEST_PHRASES=go to sleep, standby, stop listening, wait for the wake phrase
+```
+
+The same phrase list is used by local transcript matching and included in the
+Realtime session instructions, so both the local guard and the model understand
+the configured sleep commands.
 
 ## State Pose Indicator
 

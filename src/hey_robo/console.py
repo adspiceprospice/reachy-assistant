@@ -26,7 +26,14 @@ from scipy.signal import resample
 
 from reachy_mini import ReachyMini
 from reachy_mini.media.media_manager import MediaBackend
-from hey_robo.config import LOCKED_PROFILE, config, parse_realtime_languages, realtime_languages_to_env
+from hey_robo.config import (
+    LOCKED_PROFILE,
+    config,
+    parse_realtime_languages,
+    realtime_languages_to_env,
+    parse_standby_request_phrases,
+    standby_request_phrases_to_env,
+)
 from hey_robo.wake_word import (
     WakeDetection,
     WakeWordDetector,
@@ -382,7 +389,7 @@ class LocalStream:
             instance_path=self._instance_path,
             sample_rate=int(getattr(config, "WAKE_SAMPLE_RATE", 16_000)),
             min_interval_seconds=float(getattr(config, "WAKE_ACTIVATION_MIN_INTERVAL_SECONDS", 2.0)),
-            min_confidence=float(getattr(config, "WAKE_MIN_CONFIDENCE", 0.60)),
+            min_confidence=float(getattr(config, "WAKE_MIN_CONFIDENCE", 0.70)),
         )
         self._wake_status = self._wake_detector.status
         if self._wake_status.ready:
@@ -546,6 +553,7 @@ class LocalStream:
             wake_phrase: str | None = None
             wake_model_path: str | None = None
             wake_session_timeout_seconds: float | None = None
+            standby_request_phrases: str | None = None
             realtime_voice: str | None = None
             realtime_languages: str | None = None
             codex_relay_url: str | None = None
@@ -569,6 +577,7 @@ class LocalStream:
                 "HEY_ROBO_WAKE_PHRASE": "WAKE_PHRASE",
                 "HEY_ROBO_WAKE_MODEL_PATH": "WAKE_MODEL_PATH",
                 "HEY_ROBO_WAKE_SESSION_TIMEOUT_SECONDS": "WAKE_SESSION_TIMEOUT_SECONDS",
+                "HEY_ROBO_STANDBY_REQUEST_PHRASES": "STANDBY_REQUEST_PHRASES",
                 "HEY_ROBO_REALTIME_VOICE": "REALTIME_VOICE",
                 "HEY_ROBO_REALTIME_LANGUAGES": "REALTIME_LANGUAGES",
                 "HEY_ROBO_CODEX_RELAY_URL": "CODEX_RELAY_URL",
@@ -586,6 +595,8 @@ class LocalStream:
                             self._session_timeout_seconds = value
                         elif env_key == "HEY_ROBO_REALTIME_LANGUAGES":
                             value = parse_realtime_languages(value)
+                        elif env_key == "HEY_ROBO_STANDBY_REQUEST_PHRASES":
+                            value = parse_standby_request_phrases(value)
                         setattr(config, attr, value)
                     except Exception:
                         pass
@@ -633,6 +644,9 @@ class LocalStream:
                     "state_poses_enabled": bool(getattr(config, "STATE_POSES_ENABLED", True)),
                     "standby_pose_mode": getattr(config, "STANDBY_POSE_MODE", "sleep_off"),
                     "standby_disable_motors": bool(getattr(config, "STANDBY_DISABLE_MOTORS", True)),
+                    "standby_request_phrases": standby_request_phrases_to_env(
+                        getattr(config, "STANDBY_REQUEST_PHRASES", None)
+                    ),
                     "realtime_voice": getattr(config, "REALTIME_VOICE", "cedar"),
                     "realtime_languages": realtime_languages_to_env(
                         getattr(config, "REALTIME_LANGUAGES", None)
@@ -725,6 +739,10 @@ class LocalStream:
                 values["HEY_ROBO_WAKE_MODEL_PATH"] = payload.wake_model_path
             if payload.wake_session_timeout_seconds is not None:
                 values["HEY_ROBO_WAKE_SESSION_TIMEOUT_SECONDS"] = str(payload.wake_session_timeout_seconds)
+            if payload.standby_request_phrases is not None:
+                values["HEY_ROBO_STANDBY_REQUEST_PHRASES"] = standby_request_phrases_to_env(
+                    payload.standby_request_phrases
+                )
             if payload.realtime_voice and payload.realtime_voice.strip():
                 values["HEY_ROBO_REALTIME_VOICE"] = payload.realtime_voice
             if payload.realtime_languages is not None:
@@ -842,6 +860,12 @@ class LocalStream:
                     if realtime_languages is not None:
                         try:
                             config.REALTIME_LANGUAGES = parse_realtime_languages(realtime_languages)
+                        except Exception:
+                            pass
+                    standby_phrases = os.getenv("HEY_ROBO_STANDBY_REQUEST_PHRASES")
+                    if standby_phrases is not None:
+                        try:
+                            config.STANDBY_REQUEST_PHRASES = parse_standby_request_phrases(standby_phrases)
                         except Exception:
                             pass
                     relay_url = os.getenv("HEY_ROBO_CODEX_RELAY_URL")
